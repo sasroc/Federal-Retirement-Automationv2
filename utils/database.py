@@ -22,7 +22,7 @@ def create_database():
         )
     ''')
     
-    # Applications table with hire_date
+    # Applications table
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS Applications (
             application_id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -51,10 +51,26 @@ def create_database():
         )
     ''')
     
-    # Migration step: Add new columns if they don’t exist
+    # Migration step: Ensure all columns exist (optional for new DB, but safe)
+    cursor.execute("PRAGMA table_info(Employees)")
+    employee_columns = [col[1] for col in cursor.fetchall()]
+    employee_new_columns = {
+        'ssn': 'TEXT',
+        'address': 'TEXT',
+        'city': 'TEXT',
+        'state': 'TEXT',
+        'zip_code': 'TEXT',
+        'phone': 'TEXT',
+        'email': 'TEXT',
+        'is_us_citizen': 'BOOLEAN'
+    }
+    for col, col_type in employee_new_columns.items():
+        if col not in employee_columns:
+            cursor.execute(f"ALTER TABLE Employees ADD COLUMN {col} {col_type}")
+
     cursor.execute("PRAGMA table_info(Applications)")
-    columns = [col[1] for col in cursor.fetchall()]
-    new_columns = {
+    application_columns = [col[1] for col in cursor.fetchall()]
+    application_new_columns = {
         'agency': 'TEXT',
         'position_title': 'TEXT',
         'survivor_benefit': 'TEXT',
@@ -70,8 +86,8 @@ def create_database():
         'has_court_orders': 'BOOLEAN',
         'hire_date': 'TEXT'
     }
-    for col, col_type in new_columns.items():
-        if col not in columns:
+    for col, col_type in application_new_columns.items():
+        if col not in application_columns:
             cursor.execute(f"ALTER TABLE Applications ADD COLUMN {col} {col_type}")
     
     conn.commit()

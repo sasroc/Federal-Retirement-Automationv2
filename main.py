@@ -2,7 +2,8 @@ from PyQt6.QtWidgets import QApplication, QMainWindow, QStackedWidget, QDialog
 from gui.employee_portal import EmployeePortal
 from gui.processor_dashboard import ProcessorDashboard
 from gui.supervisor_dashboard import SupervisorDashboard
-from gui.login_dialog import LoginDialog  # Assuming you saved the login dialog in gui/login_dialog.py
+from gui.login_dialog import LoginDialog
+from utils.database import create_database
 
 class RetirementApp(QMainWindow):
     def __init__(self):
@@ -37,6 +38,7 @@ class RetirementApp(QMainWindow):
             self.close()
 
 if __name__ == "__main__":
+    create_database()  # Ensure database is created before app starts
     app = QApplication([])
     window = RetirementApp()
     window.show()
