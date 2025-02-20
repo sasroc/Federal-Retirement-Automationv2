@@ -1,4 +1,4 @@
-from PyQt6.QtWidgets import QWidget, QVBoxLayout, QTableWidget, QTableWidgetItem, QPushButton, QMessageBox, QHBoxLayout, QDialog, QLabel
+from PyQt6.QtWidgets import QWidget, QVBoxLayout, QTableWidget, QTableWidgetItem, QPushButton, QMessageBox, QDialog, QLabel, QHBoxLayout
 from PyQt6.QtCore import Qt
 import sqlite3
 from utils.calculations import calculate_age
@@ -11,7 +11,6 @@ class DetailsDialog(QDialog):
         layout = QVBoxLayout()
         self.setLayout(layout)
 
-        # Fetch application and employee data
         conn = sqlite3.connect('retirement.db')
         cursor = conn.cursor()
         cursor.execute("SELECT * FROM Applications WHERE application_id = ?", (application_id,))
@@ -20,7 +19,6 @@ class DetailsDialog(QDialog):
         emp = cursor.fetchone()
         conn.close()
 
-        # Display detailed information
         age = calculate_age(emp[3])
         details = f"""
         Application ID: {app[0]}
@@ -34,7 +32,7 @@ class DetailsDialog(QDialog):
         Benefits: ${app[7]:,.2f} (if calculated)
         Note: Benefits are typically 1% of high-3 salary per year of service, or 1.1% if age >= 62 and years >= 20.
         """
-        layout.addWidget(QLabel(details))
+        layout.addWidget(QLabel(details, styleSheet="color: #ffffff; font-size: 14px;"))
 
         close_btn = QPushButton("Close")
         close_btn.setStyleSheet("background-color: #757575; color: white; padding: 5px; border-radius: 3px;")
@@ -44,23 +42,56 @@ class DetailsDialog(QDialog):
 class SupervisorDashboard(QWidget):
     def __init__(self):
         super().__init__()
-        self.setStyleSheet("background-color: #f0f4f8;")
+        # Set dark background to match EmployeePortal
+        self.setStyleSheet("""
+            background-color: #1e1e2f;  /* Dark background for modern look */
+            font-family: Arial;
+        """)
+        
         layout = QVBoxLayout()
         layout.setContentsMargins(20, 20, 20, 20)
         layout.setSpacing(15)
         self.setLayout(layout)
 
-        # Table setup
+        # Table setup with dark background and white text
         self.table = QTableWidget()
         self.table.setColumnCount(7)
         self.table.setHorizontalHeaderLabels(["App ID", "Name", "Age", "Years", "Salary", "Benefits", "Actions"])
         self.table.setAlternatingRowColors(True)
-        self.table.setStyleSheet("alternate-background-color: #e8f0f8;")
+        self.table.setStyleSheet("""
+            QTableWidget {
+                background-color: #1e1e2f;
+                color: #ffffff;  /* White text for table content */
+                font-size: 14px;
+                border: 2px solid #777777;
+                border-radius: 6px;
+            }
+            QHeaderView::section {
+                background-color: #333333;  /* Dark grey for headers */
+                color: #ffffff;  /* White text for headers */
+                padding: 8px;
+                border: 1px solid #777777;
+                font-weight: bold;
+            }
+            QTableWidget::item {
+                padding: 8px;
+            }
+            QTableWidget::alternate {
+                background-color: #444444;  /* Dark grey for alternate rows */
+                color: #ffffff;  /* White text for alternate rows */
+            }
+        """)
         layout.addWidget(self.table, stretch=1)
 
-        # Refresh button
+        # Refresh button with styling matching EmployeePortal
         refresh_btn = QPushButton("Refresh")
-        refresh_btn.setStyleSheet("background-color: #2196F3; color: white; padding: 10px; border-radius: 5px;")
+        refresh_btn.setStyleSheet("""
+            background-color: #2196F3; 
+            color: white; 
+            padding: 12px; 
+            border-radius: 8px; 
+            font-size: 14px;
+        """)
         refresh_btn.clicked.connect(self.load_applications)
         layout.addWidget(refresh_btn, stretch=0)
 
