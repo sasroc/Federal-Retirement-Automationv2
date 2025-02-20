@@ -4,60 +4,36 @@ def create_database():
     conn = sqlite3.connect('retirement.db')
     cursor = conn.cursor()
     
-    # Employees table
+    # Create Employees table if it does not exist
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS Employees (
             employee_id INTEGER PRIMARY KEY AUTOINCREMENT,
             first_name TEXT NOT NULL,
             last_name TEXT NOT NULL,
-            date_of_birth TEXT NOT NULL,
-            address TEXT,
-            city TEXT,
-            state TEXT,
-            zip_code TEXT,
-            email TEXT,
-            phone_number TEXT,
-            ssn TEXT NOT NULL
+            dob TEXT NOT NULL
         )
     ''')
     
-    # Service History table
+    # Create Applications table with the benefits column
     cursor.execute('''
-        CREATE TABLE IF NOT EXISTS ServiceHistory (
-            service_id INTEGER PRIMARY KEY AUTOINCREMENT,
+        CREATE TABLE IF NOT EXISTS Applications (
+            application_id INTEGER PRIMARY KEY AUTOINCREMENT,
             employee_id INTEGER,
-            start_date TEXT NOT NULL,
-            end_date TEXT,
-            position TEXT,
-            agency TEXT,
+            years_service REAL,
+            retirement_date TEXT,
+            salary REAL,
+            submission_date TEXT DEFAULT CURRENT_TIMESTAMP,
+            status TEXT DEFAULT 'submitted',
+            benefits REAL,  -- Added benefits column
             FOREIGN KEY (employee_id) REFERENCES Employees (employee_id)
         )
     ''')
     
-    # Salary History table
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS SalaryHistory (
-            salary_id INTEGER PRIMARY KEY AUTOINCREMENT,
-            employee_id INTEGER,
-            effective_date TEXT NOT NULL,
-            annual_salary REAL NOT NULL,
-            FOREIGN KEY (employee_id) REFERENCES Employees (employee_id)
-        )
-    ''')
-    
-    # Leave Balances table
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS LeaveBalances (
-            leave_id INTEGER PRIMARY KEY AUTOINCREMENT,
-            employee_id INTEGER,
-            annual_leave_hours REAL NOT NULL,
-            sick_leave_hours REAL NOT NULL,
-            FOREIGN KEY (employee_id) REFERENCES Employees (employee_id)
-        )
-    ''')
+    # Migration step: Add 'benefits' column if it doesn’t exist
+    cursor.execute("PRAGMA table_info(Applications)")
+    columns = [col[1] for col in cursor.fetchall()]
+    if 'benefits' not in columns:
+        cursor.execute("ALTER TABLE Applications ADD COLUMN benefits REAL")
     
     conn.commit()
     conn.close()
-
-if __name__ == "__main__":
-    create_database()
