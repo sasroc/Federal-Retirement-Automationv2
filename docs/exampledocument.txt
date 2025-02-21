@@ -1,0 +1,37 @@
+Federal Retirement Automation
+Retirement Application
+
+First Name:
+Last Name:
+Date of Birth:
+Social Security Number:
+Address:
+City:
+State:
+Zip Code:
+Phone Number:
+Email Address:
+U.S. Citizen:
+Agency:
+Position Title:
+
+Hire/Start Date:
+Retirement Date:
+Years of Service:
+
+High-3 Salary:
+Survivor Benefit:
+
+Continue FEHB (5+ years coverage):
+Continue FEGLI (5+ years coverage):
+
+Bank Name (Direct Deposit):
+Account Number:
+Routing Number:
+
+Served in Armed Forces:
+Receiving Military Retired Pay:
+Waived Military Pay for CSRS/FERS:
+Unused Sick Leave Hours:
+
+Court Orders for Former Spouses:
