@@ -1,12 +1,20 @@
 import pytesseract
 from PIL import Image
+import pdf2image
 
-def extract_text_from_image(image_path):
+def extract_text_from_image(file_path):
     """
-    Extract text from an image using Tesseract OCR.
+    Extract text from an image or PDF using Tesseract OCR.
     """
-    image = Image.open(image_path)
-    return pytesseract.image_to_string(image)
+    if file_path.lower().endswith('.pdf'):
+        images = pdf2image.convert_from_path(file_path)
+        text = ""
+        for image in images:
+            text += pytesseract.image_to_string(image) + "\n"
+        return text
+    else:
+        image = Image.open(file_path)
+        return pytesseract.image_to_string(image)
 
 def parse_ocr_text(text):
     """
@@ -15,6 +23,7 @@ def parse_ocr_text(text):
     """
     data = {}
     lines = text.split('\n')
+
     for line in lines:
         line = line.strip()
         if not line:
@@ -26,10 +35,10 @@ def parse_ocr_text(text):
         elif 'Last Name:' in line:
             data['last_name'] = line.split('Last Name:')[1].strip()
         elif 'Date of Birth:' in line:
-            data['dob'] = line.split('Date of Birth:')[1].strip()  # Expect YYYY-MM-DD
+            data['dob'] = line.split('Date of Birth:')[1].strip()
         elif 'Social Security Number:' in line:
             data['ssn'] = line.split('Social Security Number:')[1].strip()
-        elif 'Address:' in line:
+        elif 'Address:' in line and 'Email' not in line:
             data['address'] = line.split('Address:')[1].strip()
         elif 'City:' in line:
             data['city'] = line.split('City:')[1].strip()
@@ -50,21 +59,21 @@ def parse_ocr_text(text):
         elif 'Position Title:' in line:
             data['position_title'] = line.split('Position Title:')[1].strip()
         elif 'Hire/Start Date:' in line:
-            data['hire_date'] = line.split('Hire/Start Date:')[1].strip()  # Expect YYYY-MM-DD
+            data['hire_date'] = line.split('Hire/Start Date:')[1].strip()
         elif 'Retirement Date:' in line:
-            data['retirement_date'] = line.split('Retirement Date:')[1].strip()  # Expect YYYY-MM-DD
+            data['retirement_date'] = line.split('Retirement Date:')[1].strip()
         elif 'High-3 Salary:' in line:
             data['salary'] = line.split('High-3 Salary:')[1].strip().replace('$', '').replace(',', '')
 
         # Benefits Elections
         elif 'Survivor Benefit:' in line:
             data['survivor_benefit'] = line.split('Survivor Benefit:')[1].strip()
-        elif 'Continue FEHB:' in line:
+        elif 'Continue FEHB (5+ years coverage):' in line:
             data['fehb_continue'] = 'Yes' in line or 'true' in line.lower()
-        elif 'Continue FEGLI:' in line:
+        elif 'Continue FEGLI (5+ years coverage):' in line:
             data['fegli_continue'] = 'Yes' in line or 'true' in line.lower()
-        elif 'Bank Name:' in line:
-            data['bank_name'] = line.split('Bank Name:')[1].strip()
+        elif 'Bank Name (Direct Deposit):' in line:
+            data['bank_name'] = line.split('Bank Name (Direct Deposit):')[1].strip()
         elif 'Account Number:' in line:
             data['account_number'] = line.split('Account Number:')[1].strip()
         elif 'Routing Number:' in line:
@@ -88,7 +97,7 @@ def parse_ocr_text(text):
     for key in ['salary', 'sick_leave_hours']:
         if key in data and data[key]:
             try:
-                data[key] = float(data[key])
+                data['key'] = float(data[key])
             except ValueError:
                 data[key] = 0
     for key in ['is_us_citizen', 'fehb_continue', 'fegli_continue', 'served_military', 

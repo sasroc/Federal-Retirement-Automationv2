@@ -177,7 +177,7 @@ class EmployeePortal(QWidget):
         submit_btn.clicked.connect(self.submit_application)
         layout.addWidget(submit_btn)
 
-        upload_btn = QPushButton("Upload Paper Form")
+        upload_btn = QPushButton("Upload Document or Image")
         upload_btn.setStyleSheet("""
             background-color: #2196F3; 
             color: white; 
@@ -287,7 +287,8 @@ class EmployeePortal(QWidget):
             QMessageBox.critical(self, "Error", str(e))
 
     def upload_form(self):
-        file_name, _ = QFileDialog.getOpenFileName(self, "Upload Form", "", "Image Files (*.png *.jpg *.jpeg)")
+        file_name, _ = QFileDialog.getOpenFileName(self, "Upload Form", "", 
+                                               "Files (*.png *.jpg *.jpeg *.pdf)")
         if file_name:
             text = extract_text_from_image(file_name)
             data = parse_ocr_text(text)
@@ -295,18 +296,19 @@ class EmployeePortal(QWidget):
             self.last_name.setText(data.get('last_name', ''))
             self.dob.setDate(QDate.fromString(data.get('dob', ''), "yyyy-MM-dd") or QDate.currentDate().addYears(-40))
             self.ssn.setText(data.get('ssn', ''))
-            self.address.setText(data.get('address', ''))
+            self.address.setText(data.get('address', ''))  # Ensure address is correctly assigned
             self.city.setText(data.get('city', ''))
             self.state.setText(data.get('state', ''))
             self.zip_code.setText(data.get('zip_code', ''))
             self.phone.setText(data.get('phone', ''))
-            self.email.setText(data.get('email', ''))
+            self.email.setText(data.get('email', ''))  # Ensure email is correctly assigned
             self.is_us_citizen.setChecked(data.get('is_us_citizen', False))
             self.agency.setText(data.get('agency', ''))
             self.position_title.setText(data.get('position_title', ''))
             self.hire_date.setDate(QDate.fromString(data.get('hire_date', ''), "yyyy-MM-dd") or QDate.currentDate().addYears(-20))
             self.retirement_date.setDate(QDate.fromString(data.get('retirement_date', ''), "yyyy-MM-dd") or QDate.currentDate())
-            self.salary.setText(data.get('salary', ''))
+            salary = data.get('salary', '')
+            self.salary.setText(str(salary) if salary != '' else '')
             self.survivor_benefit.setText(data.get('survivor_benefit', ''))
             self.fehb_continue.setChecked(data.get('fehb_continue', False))
             self.fegli_continue.setChecked(data.get('fegli_continue', False))
@@ -316,6 +318,7 @@ class EmployeePortal(QWidget):
             self.served_military.setChecked(data.get('served_military', False))
             self.military_retired_pay.setChecked(data.get('military_retired_pay', False))
             self.waived_military_pay.setChecked(data.get('waived_military_pay', False))
-            self.sick_leave_hours.setText(data.get('sick_leave_hours', ''))
+            sick_leave_hours = data.get('sick_leave_hours', '')
+            self.sick_leave_hours.setText(str(sick_leave_hours) if sick_leave_hours != '' else '')
             self.has_court_orders.setChecked(data.get('has_court_orders', False))
             self.calculate_years_service()

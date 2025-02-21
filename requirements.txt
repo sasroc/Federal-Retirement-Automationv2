@@ -4,3 +4,5 @@ PyQt6
 pytesseract 
 pillow 
 cryptography
+pdf2image
+poppler
