@@ -4,6 +4,7 @@ from datetime import datetime
 from models.employee import Employee
 from models.application import Application
 from utils.ocr_processor import extract_text_from_image, parse_ocr_text
+import sqlite3
 
 class EmployeePortal(QWidget):
     def __init__(self):
@@ -282,6 +283,13 @@ class EmployeePortal(QWidget):
                 self.has_court_orders.isChecked()
             )
             app.save()
+            # Set initial status to "processing"
+            conn = sqlite3.connect('retirement.db')
+            cursor = conn.cursor()
+            cursor.execute("UPDATE Applications SET status = 'processing' WHERE employee_id = ? AND submission_date = (SELECT MAX(submission_date) FROM Applications WHERE employee_id = ?)", 
+                        (employee_id, employee_id))
+            conn.commit()
+            conn.close()
             QMessageBox.information(self, "Success", "Application submitted successfully!")
         except ValueError as e:
             QMessageBox.critical(self, "Error", str(e))
