@@ -1,7 +1,70 @@
-from PyQt6.QtWidgets import QWidget, QVBoxLayout, QTableWidget, QTableWidgetItem, QPushButton, QMessageBox, QDialog, QLabel, QHBoxLayout
+from PyQt6.QtWidgets import QWidget, QVBoxLayout, QTableWidget, QTableWidgetItem, QPushButton, QMessageBox, QDialog, QLabel, QHBoxLayout, QTextEdit
 from PyQt6.QtCore import Qt
 import sqlite3
 from utils.calculations import calculate_age
+
+class NoteDialog(QDialog):
+    def __init__(self, application_id, parent=None):
+        super().__init__(parent)
+        self.application_id = application_id
+        self.setWindowTitle("Add Denial Note")
+        self.setMinimumWidth(400)
+        layout = QVBoxLayout()
+        self.setLayout(layout)
+
+        # Text area for note input
+        self.note_text = QTextEdit()
+        layout.addWidget(QLabel("Enter a note for denying this application:", styleSheet="color: #ffffff; font-size: 14px;"))
+        layout.addWidget(self.note_text)
+
+        # Save button
+        save_btn = QPushButton("Save")
+        save_btn.setStyleSheet("background-color: #4CAF50; color: white; padding: 5px; border-radius: 3px;")
+        save_btn.clicked.connect(self.save_note)
+        layout.addWidget(save_btn)
+
+    def save_note(self):
+        note = self.note_text.toPlainText().strip()
+        if note:
+            conn = sqlite3.connect('retirement.db')
+            cursor = conn.cursor()
+            # Update or insert the note into the Applications table for this specific application
+            cursor.execute("""
+                UPDATE Applications SET denial_note = ?, status = 'Denied' WHERE application_id = ?
+            """, (note, self.application_id))
+            conn.commit()
+            conn.close()
+            QMessageBox.information(self, "Success", "Note saved successfully. Application denied.")
+            self.accept()
+        else:
+            QMessageBox.warning(self, "Warning", "Please enter a note before saving.")
+
+class ViewNotesDialog(QDialog):
+    def __init__(self, application_id, parent=None):
+        super().__init__(parent)
+        self.application_id = application_id
+        self.setWindowTitle(f"View Notes for Application {application_id}")
+        self.setMinimumWidth(400)
+        layout = QVBoxLayout()
+        self.setLayout(layout)
+
+        conn = sqlite3.connect('retirement.db')
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT denial_note FROM Applications WHERE application_id = ?
+        """, (application_id,))
+        note = cursor.fetchone()
+        conn.close()
+
+        if note and note[0]:
+            layout.addWidget(QLabel(f"Note:\n\n{note[0]}", styleSheet="color: #ffffff; font-size: 14px;"))
+        else:
+            layout.addWidget(QLabel("No notes available for this application.", styleSheet="color: #ffffff; font-size: 14px;"))
+
+        close_btn = QPushButton("Close")
+        close_btn.setStyleSheet("background-color: #757575; color: white; padding: 5px; border-radius: 3px;")
+        close_btn.clicked.connect(self.close)
+        layout.addWidget(close_btn)
 
 class DetailsDialog(QDialog):
     def __init__(self, application_id, parent=None):
@@ -16,12 +79,12 @@ class DetailsDialog(QDialog):
             conn = sqlite3.connect('retirement.db')
             cursor = conn.cursor()
             
-            # Explicitly select the columns we need from Applications
+            # Explicitly select the columns we need from Applications, including denial_note
             cursor.execute("""
                 SELECT application_id, employee_id, years_service, retirement_date, salary, submission_date, status, 
                        agency, position_title, survivor_benefit, fehb_continue, fegli_continue, bank_name, 
                        account_number, routing_number, served_military, military_retired_pay, waived_military_pay, 
-                       sick_leave_hours, has_court_orders, benefits, hire_date
+                       sick_leave_hours, has_court_orders, benefits, hire_date, denial_note
                 FROM Applications WHERE application_id = ?""", (application_id,))
             app = cursor.fetchone()
 
@@ -71,7 +134,7 @@ class DetailsDialog(QDialog):
                 """
                 layout.addWidget(QLabel(details, styleSheet="color: #ffffff; font-size: 14px;"))
 
-            # Action buttons, matching the original functionality
+            # Action buttons, now only in DetailsDialog, matching the original functionality
             btn_layout = QHBoxLayout()
             
             approve_btn = QPushButton("Approve")
@@ -107,14 +170,17 @@ class DetailsDialog(QDialog):
         self.parent().load_applications()
 
     def deny_application(self):
-        conn = sqlite3.connect('retirement.db')
-        cursor = conn.cursor()
-        cursor.execute("UPDATE Applications SET status = 'Denied' WHERE application_id = ?", (self.application_id,))
-        conn.commit()
-        conn.close()
-        QMessageBox.information(self, "Denial", "Application denied.")
-        self.accept()
-        self.parent().load_applications()
+        # Prompt for a note before denying, then update status to 'Denied'
+        note_dialog = NoteDialog(self.application_id, self)
+        if note_dialog.exec() == QDialog.DialogCode.Accepted:
+            conn = sqlite3.connect('retirement.db')
+            cursor = conn.cursor()
+            cursor.execute("UPDATE Applications SET status = 'Denied' WHERE application_id = ?", (self.application_id,))
+            conn.commit()
+            conn.close()
+            QMessageBox.information(self, "Denial", "Application denied.")
+            self.accept()
+            self.parent().load_applications()
 
 class SupervisorDashboard(QWidget):
     def __init__(self):
@@ -125,9 +191,10 @@ class SupervisorDashboard(QWidget):
         layout.setSpacing(15)
         self.setLayout(layout)
 
+        # Table setup with dark background and white text, including Status and Notes columns
         self.table = QTableWidget()
-        self.table.setColumnCount(8)
-        self.table.setHorizontalHeaderLabels(["App ID", "Name", "Age", "Years", "Salary", "Benefits", "Status", "Actions"])
+        self.table.setColumnCount(9)  # Added a column for "Notes" actions
+        self.table.setHorizontalHeaderLabels(["App ID", "Name", "Age", "Years", "Salary", "Benefits", "Status", "Actions", "Notes"])
         self.table.setAlternatingRowColors(True)
         self.table.setStyleSheet("""
             QTableWidget {
@@ -154,8 +221,15 @@ class SupervisorDashboard(QWidget):
         """)
         layout.addWidget(self.table, stretch=1)
 
+        # Refresh button with styling matching EmployeePortal
         refresh_btn = QPushButton("Refresh")
-        refresh_btn.setStyleSheet("background-color: #2196F3; color: white; padding: 12px; border-radius: 8px; font-size: 14px;")
+        refresh_btn.setStyleSheet("""
+            background-color: #2196F3;
+            color: white;
+            padding: 12px;
+            border-radius: 8px;
+            font-size: 14px;
+        """)
         refresh_btn.clicked.connect(self.load_applications)
         layout.addWidget(refresh_btn, stretch=0)
 
@@ -189,6 +263,7 @@ class SupervisorDashboard(QWidget):
                     item = QTableWidgetItem(str(data) if data is not None else "N/A")
                     self.table.setItem(row, col, item)
 
+                # Actions column (column 7) - Show only "View Details" button, matching original clickable setup
                 view_btn = QPushButton("View Details")
                 view_btn.setStyleSheet("""
                     background-color: #2196F3;
@@ -200,8 +275,24 @@ class SupervisorDashboard(QWidget):
                     font-weight: normal;  /* Removed bold to avoid rendering issues */
                     border: 2px solid #FFFFFF;  /* Bright border for better definition */
                 """)
-                view_btn.clicked.connect(lambda _, a=app: self.view_details(a[0]))  # Ensure correct connection
+                view_btn.clicked.connect(lambda _, a=app: self.view_details(a[0]))
+                # Use the original approach: set the button directly as a cell widget for clickability
                 self.table.setCellWidget(row, 7, view_btn)
+
+                # Notes column (column 8) - Add "View Notes" button for each application
+                notes_btn = QPushButton("View Notes")
+                notes_btn.setStyleSheet("""
+                    background-color: #2196F3;
+                    color: #FFFFFF;
+                    padding: 5px;
+                    border-radius: 3px;
+                    font-size: 10px;
+                    font-family: Arial, sans-serif;
+                    font-weight: normal;
+                    border: 2px solid #FFFFFF;
+                """)
+                notes_btn.clicked.connect(lambda _, aid=app[0]: self.view_application_notes(aid))
+                self.table.setCellWidget(row, 8, notes_btn)
             conn.close()
         except sqlite3.Error as e:
             QMessageBox.critical(self, "Database Error", f"Error loading applications: {str(e)}")
@@ -210,3 +301,31 @@ class SupervisorDashboard(QWidget):
     def view_details(self, application_id):
         dialog = DetailsDialog(application_id, self)
         dialog.exec()
+
+    def view_application_notes(self, application_id):
+        # Open a dialog to show the note for this specific application
+        dialog = ViewNotesDialog(application_id, self)
+        dialog.exec()
+
+    def approve_application(self, app):
+        confirm = QMessageBox.question(self, "Confirm Approval", "Are you sure you want to approve this application?")
+        if confirm == QMessageBox.StandardButton.Yes:
+            conn = sqlite3.connect('retirement.db')
+            cursor = conn.cursor()
+            cursor.execute("UPDATE Applications SET status = 'Approved' WHERE application_id = ?", (app[0],))
+            conn.commit()
+            conn.close()
+            QMessageBox.information(self, "Approval", "Application approved.")
+            self.load_applications()
+
+    def deny_application(self, app):
+        # Prompt for a note before denying, then update status to 'Denied'
+        note_dialog = NoteDialog(app[0], self)
+        if note_dialog.exec() == QDialog.DialogCode.Accepted:
+            conn = sqlite3.connect('retirement.db')
+            cursor = conn.cursor()
+            cursor.execute("UPDATE Applications SET status = 'Denied' WHERE application_id = ?", (app[0],))
+            conn.commit()
+            conn.close()
+            QMessageBox.information(self, "Denial", "Application denied.")
+            self.load_applications()

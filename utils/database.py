@@ -47,6 +47,7 @@ def create_database():
             status TEXT DEFAULT 'submitted',
             benefits REAL,
             hire_date TEXT,
+            denial_note TEXT,
             FOREIGN KEY (employee_id) REFERENCES Employees (employee_id)
         )
     ''')
