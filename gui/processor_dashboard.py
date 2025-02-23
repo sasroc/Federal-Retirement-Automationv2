@@ -34,7 +34,7 @@ class DetailsDialog(QDialog):
             conn.close()
 
             if not app or not emp:
-                layout.addWidget(QLabel("No application or employee data found.", styleSheet="color: #ffffff; font-size: 14px;"))
+                layout.addWidget(QLabel("No application or employee data found.", styleSheet="color: #ffffff; font-size: 18px;"))
             else:
                 age = calculate_age(emp[3])  # dob is the 4th column (index 3) in Employees
                 years_service = app[2]  # years_service is the 3rd column (index 2) in Applications
@@ -67,7 +67,7 @@ class DetailsDialog(QDialog):
                 Sick Leave Hours: {app[18]}
                 Court Orders: {'Yes' if app[19] else 'No'}
                 """
-                layout.addWidget(QLabel(details, styleSheet="color: #ffffff; font-size: 14px;"))
+                layout.addWidget(QLabel(details, styleSheet="color: #ffffff; font-size: 16px;"))
 
             # Action buttons
             btn_layout = QHBoxLayout()
@@ -191,10 +191,28 @@ class ProcessorDashboard(QWidget):
                     item = QTableWidgetItem(str(data) if data is not None else "N/A")
                     self.table.setItem(row, col, item)
 
+                # Create and style the "View Details" button with clearly visible text
                 view_btn = QPushButton("View Details")
-                view_btn.setStyleSheet("background-color: #2196F3; color: white; padding: 5px; border-radius: 3px;")
+                view_btn.setStyleSheet("""
+                    background-color: #2196F3;
+                    color: #FFFFFF;  /* Ensure white text for high contrast against blue background */
+                    padding: 2px 20px;  /* Sufficient padding for height and width */
+                    border-radius: 3px;
+                    font-size: 12px;  /* Larger font size for better readability */
+                    font-family: Arial, sans-serif;
+                    font-weight: bold;  /* Make text bold for emphasis */
+                    border: 2px solid #FFFFFF;  /* Bright border for visibility */
+                    min-height: 40px;  /* Minimum height to ensure text fits */
+                """)
                 view_btn.clicked.connect(lambda _, a=app: self.view_details(a[0]))
                 self.table.setCellWidget(row, 7, view_btn)
+
+                # Set a larger row height to accommodate the button and ensure text visibility
+                self.table.setRowHeight(row, 60)  # Adjust this value as needed for readability
+
+            # Set a wider width for the 'Actions' column (column index 7)
+            self.table.setColumnWidth(7, 150)  # Increase width to 150 pixels (adjust as needed for visibility)
+
             conn.close()
         except sqlite3.Error as e:
             QMessageBox.critical(self, "Database Error", f"Error loading applications: {str(e)}")

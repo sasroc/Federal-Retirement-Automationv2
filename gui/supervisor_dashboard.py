@@ -263,36 +263,45 @@ class SupervisorDashboard(QWidget):
                     item = QTableWidgetItem(str(data) if data is not None else "N/A")
                     self.table.setItem(row, col, item)
 
-                # Actions column (column 7) - Show only "View Details" button, matching original clickable setup
+                # Actions column (column 7) - Show "View Details" button with clearly visible text
                 view_btn = QPushButton("View Details")
                 view_btn.setStyleSheet("""
                     background-color: #2196F3;
-                    color: #FFFFFF;  /* Bright white for high contrast */
-                    padding: 10px 20px;  /* Increased padding for better visibility */
+                    color: #FFFFFF;  /* Ensure white text for high contrast against blue background */
+                    padding: 2px 20px;  /* Sufficient padding for height and width */
                     border-radius: 3px;
-                    font-size: 10px;  /* Larger font size for clarity */
-                    font-family: Arial, sans-serif;  /* Fallback font for consistency */
-                    font-weight: normal;  /* Removed bold to avoid rendering issues */
-                    border: 2px solid #FFFFFF;  /* Bright border for better definition */
+                    font-size: 12px;  /* Larger font size for better readability */
+                    font-family: Arial, sans-serif;
+                    font-weight: bold;  /* Make text bold for emphasis */
+                    border: 2px solid #FFFFFF;  /* Bright border for visibility */
+                    min-height: 40px;  /* Minimum height to ensure text fits */
                 """)
                 view_btn.clicked.connect(lambda _, a=app: self.view_details(a[0]))
-                # Use the original approach: set the button directly as a cell widget for clickability
                 self.table.setCellWidget(row, 7, view_btn)
 
-                # Notes column (column 8) - Add "View Notes" button for each application
+                # Notes column (column 8) - Add "View Notes" button with shaded yellow background
                 notes_btn = QPushButton("View Notes")
                 notes_btn.setStyleSheet("""
-                    background-color: #2196F3;
-                    color: #FFFFFF;
-                    padding: 5px;
+                    background-color: #FFEB3B;  /* Shaded yellow (e.g., light yellow) */
+                    color: #000000;  /* Black text for high contrast against yellow background */
+                    padding: 2px 20px;  /* Sufficient padding for height and width */
                     border-radius: 3px;
-                    font-size: 10px;
+                    font-size: 12px;  /* Larger font size for better readability */
                     font-family: Arial, sans-serif;
-                    font-weight: normal;
-                    border: 2px solid #FFFFFF;
+                    font-weight: bold;  /* Make text bold for emphasis */
+                    border: 2px solid #000000;  /* Black border for visibility */
+                    min-height: 40px;  /* Minimum height to ensure text fits */
                 """)
                 notes_btn.clicked.connect(lambda _, aid=app[0]: self.view_application_notes(aid))
                 self.table.setCellWidget(row, 8, notes_btn)
+
+                # Set a larger row height to accommodate the buttons and ensure text visibility
+                self.table.setRowHeight(row, 60)  # Adjust this value as needed for readability
+
+            # Set wider widths for the 'Actions' (column 7) and 'Notes' (column 8) columns
+            self.table.setColumnWidth(7, 150)  # Increase width to 150 pixels for 'Actions' (adjust as needed)
+            self.table.setColumnWidth(8, 150)  # Increase width to 150 pixels for 'Notes' (adjust as needed)
+
             conn.close()
         except sqlite3.Error as e:
             QMessageBox.critical(self, "Database Error", f"Error loading applications: {str(e)}")
