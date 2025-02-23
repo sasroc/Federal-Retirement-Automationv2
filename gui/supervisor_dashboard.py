@@ -170,7 +170,7 @@ class SupervisorDashboard(QWidget):
                 SELECT a.application_id, e.first_name || ' ' || e.last_name, e.dob, a.years_service, a.salary, a.benefits, a.status 
                 FROM Applications a 
                 JOIN Employees e ON a.employee_id = e.employee_id 
-                WHERE a.status IN ('pending approval', 'Approved', 'Denied')
+                WHERE a.status IN ('Pending', 'Approved', 'Denied')
             """)
             apps = cursor.fetchall()
             

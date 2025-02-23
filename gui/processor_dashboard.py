@@ -97,7 +97,7 @@ class DetailsDialog(QDialog):
     def submit_to_supervisor(self):
         conn = sqlite3.connect('retirement.db')
         cursor = conn.cursor()
-        cursor.execute("UPDATE Applications SET status = 'pending approval' WHERE application_id = ?", (self.application_id,))
+        cursor.execute("UPDATE Applications SET status = 'Pending' WHERE application_id = ?", (self.application_id,))
         conn.commit()
         conn.close()
         QMessageBox.information(self, "Success", "Application submitted to Supervisor.")
@@ -107,7 +107,7 @@ class DetailsDialog(QDialog):
     def needs_more_info(self):
         conn = sqlite3.connect('retirement.db')
         cursor = conn.cursor()
-        cursor.execute("UPDATE Applications SET status = 'Processing/ Needs more info' WHERE application_id = ?", (self.application_id,))
+        cursor.execute("UPDATE Applications SET status = 'Needs Additional Info' WHERE application_id = ?", (self.application_id,))
         conn.commit()
         conn.close()
         QMessageBox.information(self, "Updated", "Application marked as needing more information.")
@@ -168,7 +168,7 @@ class ProcessorDashboard(QWidget):
                 SELECT a.application_id, e.first_name || ' ' || e.last_name, e.dob, a.years_service, a.salary, a.benefits, a.status 
                 FROM Applications a 
                 JOIN Employees e ON a.employee_id = e.employee_id 
-                WHERE a.status IN ('processing', 'Processing/ Needs more info')
+                WHERE a.status IN ('Processing', 'Needs Additional Info')
             """)
             apps = cursor.fetchall()
             

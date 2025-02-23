@@ -286,7 +286,7 @@ class EmployeePortal(QWidget):
             # Set initial status to "processing"
             conn = sqlite3.connect('retirement.db')
             cursor = conn.cursor()
-            cursor.execute("UPDATE Applications SET status = 'processing' WHERE employee_id = ? AND submission_date = (SELECT MAX(submission_date) FROM Applications WHERE employee_id = ?)", 
+            cursor.execute("UPDATE Applications SET status = 'Processing' WHERE employee_id = ? AND submission_date = (SELECT MAX(submission_date) FROM Applications WHERE employee_id = ?)", 
                         (employee_id, employee_id))
             conn.commit()
             conn.close()
