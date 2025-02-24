@@ -255,6 +255,7 @@ class ProcessorDashboard(QWidget):
 
                 for col, data in enumerate([app[0], app[1], age, years_service, f"${app[4]:,.2f}", f"${annuity:,.2f}" if eligible else "N/A", app[6]]):
                     item = QTableWidgetItem(str(data) if data is not None else "N/A")
+                    item.setFlags(item.flags() & ~Qt.ItemFlag.ItemIsEditable)  # Make item non-editable
                     self.table.setItem(row, col, item)
 
                 view_btn = QPushButton("View Details")
@@ -340,6 +341,7 @@ class ProcessorDashboard(QWidget):
 
                 for col, data in enumerate([app[0], app[1], age, years_service, f"${app[4]:,.2f}", f"${annuity:,.2f}" if eligible else "N/A", app[6]]):
                     item = QTableWidgetItem(str(data) if data is not None else "N/A")
+                    item.setFlags(item.flags() & ~Qt.ItemFlag.ItemIsEditable)  # Make item non-editable
                     self.table.setItem(row, col, item)
 
                 view_btn = QPushButton("View Details")
