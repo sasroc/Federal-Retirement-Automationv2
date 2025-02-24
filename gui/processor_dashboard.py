@@ -80,6 +80,8 @@ class DetailsDialog(QDialog):
         try:
             conn = sqlite3.connect('retirement.db')
             cursor = conn.cursor()
+            
+            # Explicitly select the columns we need from Applications
             cursor.execute("""
                 SELECT application_id, employee_id, years_service, retirement_date, salary, submission_date, status, 
                        agency, position_title, survivor_benefit, fehb_continue, fegli_continue, bank_name, 
@@ -88,6 +90,7 @@ class DetailsDialog(QDialog):
                 FROM Applications WHERE application_id = ?""", (application_id,))
             app = cursor.fetchone()
 
+            # Explicitly select the columns we need from Employees
             cursor.execute("""
                 SELECT employee_id, first_name, last_name, dob, ssn, address, city, state, zip_code, phone, email, 
                        is_us_citizen
@@ -98,11 +101,12 @@ class DetailsDialog(QDialog):
             if not app or not emp:
                 layout.addWidget(QLabel("No application or employee data found.", styleSheet="color: #ffffff; font-size: 18px;"))
             else:
-                age = calculate_age(emp[3])
-                years_service = app[2]
+                age = calculate_age(emp[3])  # dob is the 4th column (index 3) in Employees
+                years_service = app[2]  # years_service is the 3rd column (index 2) in Applications
                 eligible = is_eligible(age, years_service)
-                annuity = calculate_annuity(years_service, app[4], age) if eligible else 0
+                annuity = calculate_annuity(years_service, app[4], age) if eligible else 0  # salary is the 5th column (index 4)
 
+                # Use the correct column indices or names for each field, matching the original format but with all fields
                 details = f"""
                 Application ID: {app[0]}
                 Employee: {emp[1]} {emp[2]}
@@ -130,7 +134,9 @@ class DetailsDialog(QDialog):
                 """
                 layout.addWidget(QLabel(details, styleSheet="color: #ffffff; font-size: 16px;"))
 
+            # Action buttons
             btn_layout = QHBoxLayout()
+            
             submit_btn = QPushButton("Submit to Supervisor")
             submit_btn.setStyleSheet("background-color: #4CAF50; color: white; padding: 5px; border-radius: 3px;")
             submit_btn.clicked.connect(self.submit_to_supervisor)
@@ -156,23 +162,10 @@ class DetailsDialog(QDialog):
     def submit_to_supervisor(self):
         conn = sqlite3.connect('retirement.db')
         cursor = conn.cursor()
-        cursor.execute("SELECT status FROM Applications WHERE application_id = ?", (self.application_id,))
-        current_status = cursor.fetchone()[0]
-        
-        if current_status == "Denied by Supervisor":
-            # Clear denial_note but preserve note_history
-            cursor.execute("""
-                UPDATE Applications 
-                SET status = 'Pending', denial_note = NULL 
-                WHERE application_id = ?
-            """, (self.application_id,))
-            QMessageBox.information(self, "Success", "Application resubmitted to Supervisor with denial note cleared.")
-        else:
-            cursor.execute("UPDATE Applications SET status = 'Pending' WHERE application_id = ?", (self.application_id,))
-            QMessageBox.information(self, "Success", "Application submitted to Supervisor.")
-        
+        cursor.execute("UPDATE Applications SET status = 'Pending' WHERE application_id = ?", (self.application_id,))
         conn.commit()
         conn.close()
+        QMessageBox.information(self, "Success", "Application submitted to Supervisor.")
         self.accept()
         self.parent().load_applications()
 
@@ -192,7 +185,7 @@ class ProcessorDashboard(QWidget):
         self.setLayout(layout)
 
         self.table = QTableWidget()
-        self.table.setColumnCount(10)  # Restored to 10 columns
+        self.table.setColumnCount(10)  # Restored to 10 columns (App ID, Name, Age, Years, Salary, Benefits, Status, Actions, Notes, Note History)
         self.table.setHorizontalHeaderLabels(["App ID", "Name", "Age", "Years", "Salary", "Benefits", "Status", "Actions", "Notes", "Note History"])
         self.table.setAlternatingRowColors(True)
         self.table.setStyleSheet("""
@@ -420,3 +413,8 @@ class ProcessorDashboard(QWidget):
     def view_note_history(self, application_id):
         dialog = NoteHistoryDialog(application_id, parent=self)
         dialog.exec()
+
+    def needs_more_info(self, application_id):
+        note_dialog = NoteDialog(application_id, note_type="additional_info", parent=self)
+        if note_dialog.exec() == QDialog.DialogCode.Accepted:
+            self.load_applications()
