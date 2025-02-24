@@ -32,10 +32,13 @@ class RetirementApp(QMainWindow):
             role = login_dialog.role
             if role == "employee":
                 self.stack.setCurrentWidget(self.employee_portal)
+                self.showMaximized()  # Open EmployeePortal in maximized windowed mode
             elif role == "processor":
                 self.stack.setCurrentWidget(self.processor_dashboard)
+                self.showMaximized()  # Open ProcessorDashboard in maximized windowed mode
             elif role == "supervisor":
                 self.stack.setCurrentWidget(self.supervisor_dashboard)
+                self.showMaximized()  # Open SupervisorDashboard in maximized windowed mode
         else:
             # If login fails or is canceled, exit the application entirely
             self.close()
@@ -45,5 +48,4 @@ if __name__ == "__main__":
     create_database()  # Ensure database is created before app starts
     app = QApplication(sys.argv)  # Pass sys.argv to QApplication
     window = RetirementApp()
-    window.show()
     sys.exit(app.exec())  # Use sys.exit to properly terminate with app.exec()
