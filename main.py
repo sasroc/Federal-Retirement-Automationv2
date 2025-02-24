@@ -1,9 +1,12 @@
+# Federal-Retirement-Automationv2/main.py
+
 from PyQt6.QtWidgets import QApplication, QMainWindow, QStackedWidget, QDialog
 from gui.employee_portal import EmployeePortal
 from gui.processor_dashboard import ProcessorDashboard
 from gui.supervisor_dashboard import SupervisorDashboard
 from gui.login_dialog import LoginDialog
 from utils.database import create_database
+import sys  # Import sys to handle application exit
 
 class RetirementApp(QMainWindow):
     def __init__(self):
@@ -34,12 +37,13 @@ class RetirementApp(QMainWindow):
             elif role == "supervisor":
                 self.stack.setCurrentWidget(self.supervisor_dashboard)
         else:
-            # If login fails or is canceled, close the application
+            # If login fails or is canceled, exit the application entirely
             self.close()
+            sys.exit(0)  # Explicitly terminate the application
 
 if __name__ == "__main__":
     create_database()  # Ensure database is created before app starts
-    app = QApplication([])
+    app = QApplication(sys.argv)  # Pass sys.argv to QApplication
     window = RetirementApp()
     window.show()
-    app.exec()
+    sys.exit(app.exec())  # Use sys.exit to properly terminate with app.exec()
