@@ -2,6 +2,7 @@ from PyQt6.QtWidgets import QWidget, QVBoxLayout, QTableWidget, QTableWidgetItem
 from PyQt6.QtCore import Qt
 import sqlite3
 from utils.calculations import calculate_age, is_eligible, calculate_annuity
+from utils.dialogs import NoteDialog, ViewNotesDialog
 
 class DetailsDialog(QDialog):
     def __init__(self, application_id, parent=None):
@@ -15,8 +16,6 @@ class DetailsDialog(QDialog):
         try:
             conn = sqlite3.connect('retirement.db')
             cursor = conn.cursor()
-            
-            # Explicitly select the columns we need from Applications
             cursor.execute("""
                 SELECT application_id, employee_id, years_service, retirement_date, salary, submission_date, status, 
                        agency, position_title, survivor_benefit, fehb_continue, fegli_continue, bank_name, 
@@ -25,7 +24,6 @@ class DetailsDialog(QDialog):
                 FROM Applications WHERE application_id = ?""", (application_id,))
             app = cursor.fetchone()
 
-            # Explicitly select the columns we need from Employees
             cursor.execute("""
                 SELECT employee_id, first_name, last_name, dob, ssn, address, city, state, zip_code, phone, email, 
                        is_us_citizen
@@ -36,12 +34,11 @@ class DetailsDialog(QDialog):
             if not app or not emp:
                 layout.addWidget(QLabel("No application or employee data found.", styleSheet="color: #ffffff; font-size: 18px;"))
             else:
-                age = calculate_age(emp[3])  # dob is the 4th column (index 3) in Employees
-                years_service = app[2]  # years_service is the 3rd column (index 2) in Applications
+                age = calculate_age(emp[3])
+                years_service = app[2]
                 eligible = is_eligible(age, years_service)
-                annuity = calculate_annuity(years_service, app[4], age) if eligible else 0  # salary is the 5th column (index 4)
+                annuity = calculate_annuity(years_service, app[4], age) if eligible else 0
 
-                # Use the correct column indices or names for each field, matching the original format but with all fields
                 details = f"""
                 Application ID: {app[0]}
                 Employee: {emp[1]} {emp[2]}
@@ -69,9 +66,7 @@ class DetailsDialog(QDialog):
                 """
                 layout.addWidget(QLabel(details, styleSheet="color: #ffffff; font-size: 16px;"))
 
-            # Action buttons
             btn_layout = QHBoxLayout()
-            
             submit_btn = QPushButton("Submit to Supervisor")
             submit_btn.setStyleSheet("background-color: #4CAF50; color: white; padding: 5px; border-radius: 3px;")
             submit_btn.clicked.connect(self.submit_to_supervisor)
@@ -105,14 +100,10 @@ class DetailsDialog(QDialog):
         self.parent().load_applications()
 
     def needs_more_info(self):
-        conn = sqlite3.connect('retirement.db')
-        cursor = conn.cursor()
-        cursor.execute("UPDATE Applications SET status = 'Needs Additional Info' WHERE application_id = ?", (self.application_id,))
-        conn.commit()
-        conn.close()
-        QMessageBox.information(self, "Updated", "Application marked as needing more information.")
-        self.accept()
-        self.parent().load_applications()
+        note_dialog = NoteDialog(self.application_id, note_type="additional_info", parent=self)
+        if note_dialog.exec() == QDialog.DialogCode.Accepted:
+            self.accept()
+            self.parent().load_applications()
 
 class ProcessorDashboard(QWidget):
     def __init__(self):
@@ -124,8 +115,8 @@ class ProcessorDashboard(QWidget):
         self.setLayout(layout)
 
         self.table = QTableWidget()
-        self.table.setColumnCount(8)  # Added Status column
-        self.table.setHorizontalHeaderLabels(["App ID", "Name", "Age", "Years", "Salary", "Benefits", "Status", "Actions"])
+        self.table.setColumnCount(9)
+        self.table.setHorizontalHeaderLabels(["App ID", "Name", "Age", "Years", "Salary", "Benefits", "Status", "Actions", "Notes"])
         self.table.setAlternatingRowColors(True)
         self.table.setStyleSheet("""
             QTableWidget {
@@ -163,7 +154,6 @@ class ProcessorDashboard(QWidget):
         try:
             conn = sqlite3.connect('retirement.db')
             cursor = conn.cursor()
-            # Use explicit column names to match the Applications table schema, preserving the original behavior
             cursor.execute("""
                 SELECT a.application_id, e.first_name || ' ' || e.last_name, e.dob, a.years_service, a.salary, a.benefits, a.status 
                 FROM Applications a 
@@ -177,13 +167,12 @@ class ProcessorDashboard(QWidget):
             for row, app in enumerate(apps):
                 if not app:
                     continue
-                age = calculate_age(app[2])  # dob is the 3rd column (index 2)
-                years_service = app[3]  # years_service is the 4th column (index 3)
+                age = calculate_age(app[2])
+                years_service = app[3]
                 eligible = is_eligible(age, years_service)
-                annuity = calculate_annuity(years_service, app[4], age) if eligible else 0  # salary is the 5th column (index 4)
+                annuity = calculate_annuity(years_service, app[4], age) if eligible else 0
 
-                # Update benefits in database if eligible and benefits is None
-                if eligible and (app[5] is None or app[5] == 0):  # benefits is the 6th column (index 5)
+                if eligible and (app[5] is None or app[5] == 0):
                     cursor.execute("UPDATE Applications SET benefits = ? WHERE application_id = ?", (annuity, app[0]))
                     conn.commit()
 
@@ -191,27 +180,39 @@ class ProcessorDashboard(QWidget):
                     item = QTableWidgetItem(str(data) if data is not None else "N/A")
                     self.table.setItem(row, col, item)
 
-                # Create and style the "View Details" button with clearly visible text
                 view_btn = QPushButton("View Details")
                 view_btn.setStyleSheet("""
                     background-color: #2196F3;
-                    color: #FFFFFF;  /* Ensure white text for high contrast against blue background */
-                    padding: 2px 20px;  /* Sufficient padding for height and width */
+                    color: #FFFFFF;
+                    padding: 2px 20px;
                     border-radius: 3px;
-                    font-size: 12px;  /* Larger font size for better readability */
+                    font-size: 12px;
                     font-family: Arial, sans-serif;
-                    font-weight: bold;  /* Make text bold for emphasis */
-                    border: 2px solid #FFFFFF;  /* Bright border for visibility */
-                    min-height: 40px;  /* Minimum height to ensure text fits */
+                    font-weight: bold;
+                    border: 2px solid #FFFFFF;
+                    min-height: 40px;
                 """)
                 view_btn.clicked.connect(lambda _, a=app: self.view_details(a[0]))
                 self.table.setCellWidget(row, 7, view_btn)
 
-                # Set a larger row height to accommodate the button and ensure text visibility
-                self.table.setRowHeight(row, 60)  # Adjust this value as needed for readability
+                notes_btn = QPushButton("View Notes")
+                notes_btn.setStyleSheet("""
+                    background-color: #FFEB3B;
+                    color: #000000;
+                    padding: 2px 20px;
+                    border-radius: 3px;
+                    font-size: 12px;
+                    font-family: Arial, sans-serif;
+                    font-weight: bold;
+                    border: 2px solid #000000;
+                    min-height: 40px;
+                """)
+                notes_btn.clicked.connect(lambda _, aid=app[0]: self.view_application_notes(aid))
+                self.table.setCellWidget(row, 8, notes_btn)
 
-            # Set a wider width for the 'Actions' column (column index 7)
-            self.table.setColumnWidth(7, 150)  # Increase width to 150 pixels (adjust as needed for visibility)
+                self.table.setRowHeight(row, 60)
+                self.table.setColumnWidth(7, 150)
+                self.table.setColumnWidth(8, 150)
 
             conn.close()
         except sqlite3.Error as e:
@@ -220,4 +221,8 @@ class ProcessorDashboard(QWidget):
 
     def view_details(self, application_id):
         dialog = DetailsDialog(application_id, self)
+        dialog.exec()
+
+    def view_application_notes(self, application_id):
+        dialog = ViewNotesDialog(application_id, note_type="additional_info", parent=self)
         dialog.exec()
