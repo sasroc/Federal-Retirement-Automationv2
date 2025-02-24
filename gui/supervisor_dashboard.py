@@ -1,8 +1,166 @@
-from PyQt6.QtWidgets import QWidget, QVBoxLayout, QTableWidget, QTableWidgetItem, QPushButton, QMessageBox, QDialog, QLabel, QHBoxLayout
-from PyQt6.QtCore import Qt
+# Federal-Retirement-Automationv2/gui/supervisor_dashboard.py
+
+from PyQt6.QtWidgets import QWidget, QVBoxLayout, QTableWidget, QTableWidgetItem, QPushButton, QMessageBox, QDialog, QLabel, QHBoxLayout, QTextEdit, QHeaderView
+from PyQt6.QtCore import Qt, QPoint, QRect, QSize
+from PyQt6.QtGui import QPainter, QFontMetrics, QPen, QBrush
 import sqlite3
 from utils.calculations import calculate_age
 from utils.dialogs import NoteDialog, ViewNotesDialog, NoteHistoryDialog
+
+class CustomHeaderView(QHeaderView):
+    def __init__(self, orientation, parent=None):
+        super().__init__(orientation, parent)
+        self.setSectionsClickable(True)
+        self.sort_ascending = None  # Track sorting direction
+
+    def paintSection(self, painter, rect, logicalIndex):
+        painter.save()
+        if logicalIndex == 6:  # Status column
+            painter.fillRect(rect, QBrush(Qt.GlobalColor.darkGray))  # Match header background
+            pen = QPen(Qt.GlobalColor.white)
+            painter.setPen(pen)
+
+            # Calculate text and arrow positions
+            font_metrics = QFontMetrics(self.font())
+            status_text = "Status"
+            text_width = font_metrics.horizontalAdvance(status_text)
+            text_height = font_metrics.height()
+            text_rect = QRect(rect.left() + 5, rect.top() + (rect.height() - text_height) // 2, text_width, text_height)
+            painter.drawText(text_rect, Qt.AlignmentFlag.AlignLeft, status_text)
+
+            # Draw arrows (positioned to the right of the text)
+            arrow_size = 12  # Size of arrows
+            arrow_spacing = 2  # Space between arrows
+            total_arrow_height = arrow_size * 2 + arrow_spacing
+            arrow_y = rect.top() + (rect.height() - total_arrow_height) // 2
+
+            # Up arrow (▲) for A-Z
+            up_rect = QRect(rect.right() - arrow_size - 5, arrow_y, arrow_size, arrow_size)
+            painter.drawText(up_rect, Qt.AlignmentFlag.AlignCenter, "▲")
+            self.up_arrow_rect = up_rect  # Store for click detection
+
+            # Down arrow (▼) for Z-A
+            down_rect = QRect(rect.right() - arrow_size - 5, arrow_y + arrow_size + arrow_spacing, arrow_size, arrow_size)
+            painter.drawText(down_rect, Qt.AlignmentFlag.AlignCenter, "▼")
+            self.down_arrow_rect = down_rect  # Store for click detection
+
+            # Draw border
+            painter.setPen(QPen(Qt.GlobalColor.lightGray, 1))
+            painter.drawLine(rect.bottomLeft(), rect.bottomRight())
+            painter.drawLine(rect.topRight(), rect.bottomRight())
+        else:
+            super().paintSection(painter, rect, logicalIndex)
+        painter.restore()
+
+    def mousePressEvent(self, event):
+        logical_index = self.logicalIndexAt(event.pos())
+        if logical_index == 6:  # Status column
+            pos = event.pos()
+            if self.up_arrow_rect.contains(pos):
+                self.sort_by_status(True)  # A-Z
+            elif self.down_arrow_rect.contains(pos):
+                self.sort_by_status(False)  # Z-A
+        super().mousePressEvent(event)
+
+    def sort_by_status(self, ascending):
+        self.sort_ascending = ascending
+        parent = self.parent()
+        if isinstance(parent, QTableWidget):
+            parent.parent().sort_by_status(ascending)  # Call the parent's sorting method
+
+class NoteDialog(QDialog):
+    def __init__(self, application_id, note_type="denial", parent=None):
+        super().__init__(parent)
+        self.application_id = application_id
+        self.note_type = note_type
+        self.setWindowTitle("Add Denial Note" if note_type == "denial" else "Add Additional Info Note")
+        self.setMinimumWidth(400)
+        layout = QVBoxLayout()
+        self.setLayout(layout)
+
+        # Text area for note input
+        self.note_text = QTextEdit()
+        layout.addWidget(QLabel(f"Enter a note for {self.note_type} this application:", styleSheet="color: #ffffff; font-size: 14px;"))
+        layout.addWidget(self.note_text)
+
+        # Save button
+        save_btn = QPushButton("Save")
+        save_btn.setStyleSheet("background-color: #4CAF50; color: white; padding: 5px; border-radius: 3px;")
+        save_btn.clicked.connect(self.save_note)
+        layout.addWidget(save_btn)
+
+    def save_note(self):
+        note = self.note_text.toPlainText().strip()
+        if note:
+            conn = sqlite3.connect('retirement.db')
+            cursor = conn.cursor()
+            if self.note_type == "denial":
+                # Update or insert the denial note and set status to 'Denied by Supervisor'
+                cursor.execute("""
+                    UPDATE Applications 
+                    SET denial_note = ?, status = 'Denied by Supervisor', note_history = COALESCE(note_history, '') || ? || '; '
+                    WHERE application_id = ?
+                """, (note, f"Denied by Supervisor: {note} at {sqlite3.datetime.datetime.now()}", self.application_id))
+                QMessageBox.information(self, "Success", "Note saved successfully. Application denied and returned to processor.")
+            conn.commit()
+            conn.close()
+            self.accept()
+        else:
+            QMessageBox.warning(self, "Warning", "Please enter a note before saving.")
+
+class ViewNotesDialog(QDialog):
+    def __init__(self, application_id, note_type="denial", parent=None):
+        super().__init__(parent)
+        self.application_id = application_id
+        self.setWindowTitle(f"View {'Denial' if note_type == 'denial' else 'Additional Info'} Notes for Application {application_id}")
+        self.setMinimumWidth(400)
+        layout = QVBoxLayout()
+        self.setLayout(layout)
+
+        conn = sqlite3.connect('retirement.db')
+        cursor = conn.cursor()
+        if note_type == "denial":
+            cursor.execute("""
+                SELECT denial_note FROM Applications WHERE application_id = ?
+            """, (application_id,))
+            note = cursor.fetchone()
+            if note and note[0]:
+                layout.addWidget(QLabel(f"Note:\n\n{note[0]}", styleSheet="color: #ffffff; font-size: 14px;"))
+            else:
+                layout.addWidget(QLabel("No notes available for this application.", styleSheet="color: #ffffff; font-size: 14px;"))
+        conn.close()
+
+        close_btn = QPushButton("Close")
+        close_btn.setStyleSheet("background-color: #757575; color: white; padding: 5px; border-radius: 3px;")
+        close_btn.clicked.connect(self.close)
+        layout.addWidget(close_btn)
+
+class NoteHistoryDialog(QDialog):
+    def __init__(self, application_id, parent=None):
+        super().__init__(parent)
+        self.application_id = application_id
+        self.setWindowTitle(f"Note History for Application {application_id}")
+        self.setMinimumWidth(400)
+        layout = QVBoxLayout()
+        self.setLayout(layout)
+
+        conn = sqlite3.connect('retirement.db')
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT note_history FROM Applications WHERE application_id = ?
+        """, (application_id,))
+        history = cursor.fetchone()
+        conn.close()
+
+        if history and history[0]:
+            layout.addWidget(QLabel(f"History:\n\n{history[0]}", styleSheet="color: #ffffff; font-size: 14px;"))
+        else:
+            layout.addWidget(QLabel("No note history available for this application.", styleSheet="color: #ffffff; font-size: 14px;"))
+
+        close_btn = QPushButton("Close")
+        close_btn.setStyleSheet("background-color: #757575; color: white; padding: 5px; border-radius: 3px;")
+        close_btn.clicked.connect(self.close)
+        layout.addWidget(close_btn)
 
 class DetailsDialog(QDialog):
     def __init__(self, application_id, parent=None):
@@ -121,7 +279,7 @@ class SupervisorDashboard(QWidget):
         self.setLayout(layout)
 
         self.table = QTableWidget()
-        self.table.setColumnCount(10)  # Increased to 10 for Note History
+        self.table.setColumnCount(10)  # Restored to 10 columns for Note History
         self.table.setHorizontalHeaderLabels(["App ID", "Name", "Age", "Years", "Salary", "Benefits", "Status", "Actions", "Notes", "Note History"])
         self.table.setAlternatingRowColors(True)
         self.table.setStyleSheet("""
@@ -147,6 +305,13 @@ class SupervisorDashboard(QWidget):
                 color: #ffffff;
             }
         """)
+        # Disable default sorting to ensure it only happens on arrow clicks
+        self.table.setSortingEnabled(False)
+
+        # Set custom header for the table
+        custom_header = CustomHeaderView(Qt.Orientation.Horizontal, self.table)
+        self.table.setHorizontalHeader(custom_header)
+
         layout.addWidget(self.table, stretch=1)
 
         refresh_btn = QPushButton("Refresh")
@@ -240,6 +405,87 @@ class SupervisorDashboard(QWidget):
         except sqlite3.Error as e:
             QMessageBox.critical(self, "Database Error", f"Error loading applications: {str(e)}")
             conn.close()
+
+    def sort_by_status(self, ascending=True):
+        """Sort applications by status alphabetically (A-Z) or reverse (Z-A)."""
+        try:
+            conn = sqlite3.connect('retirement.db')
+            cursor = conn.cursor()
+            order = "ASC" if ascending else "DESC"
+            cursor.execute(f"""
+                SELECT a.application_id, e.first_name || ' ' || e.last_name, e.dob, a.years_service, a.salary, a.benefits, a.status 
+                FROM Applications a 
+                JOIN Employees e ON a.employee_id = e.employee_id 
+                WHERE a.status IN ('Pending', 'Approved', 'Denied')
+                ORDER BY a.status {order}
+            """)
+            apps = cursor.fetchall()
+            conn.close()
+
+            self.table.setRowCount(len(apps))
+            
+            for row, app in enumerate(apps):
+                if not app:
+                    continue
+                age = calculate_age(app[2])
+                benefits = app[5] if app[5] is not None else 0.0
+                benefits_str = f"${float(benefits):,.2f}" if benefits else "N/A"
+                for col, data in enumerate([app[0], app[1], age, app[3], f"${app[4]:,.2f}", benefits_str, app[6]]):
+                    item = QTableWidgetItem(str(data) if data is not None else "N/A")
+                    self.table.setItem(row, col, item)
+
+                view_btn = QPushButton("View Details")
+                view_btn.setStyleSheet("""
+                    background-color: #2196F3;
+                    color: #FFFFFF;
+                    padding: 2px 20px;
+                    border-radius: 3px;
+                    font-size: 12px;
+                    font-family: Arial, sans-serif;
+                    font-weight: bold;
+                    border: 2px solid #FFFFFF;
+                    min-height: 40px;
+                """)
+                view_btn.clicked.connect(lambda _, a=app: self.view_details(a[0]))
+                self.table.setCellWidget(row, 7, view_btn)
+
+                notes_btn = QPushButton("View Notes")
+                notes_btn.setStyleSheet("""
+                    background-color: #FFEB3B;
+                    color: #000000;
+                    padding: 2px 20px;
+                    border-radius: 3px;
+                    font-size: 12px;
+                    font-family: Arial, sans-serif;
+                    font-weight: bold;
+                    border: 2px solid #000000;
+                    min-height: 40px;
+                """)
+                notes_btn.clicked.connect(lambda _, aid=app[0]: self.view_application_notes(aid))
+                self.table.setCellWidget(row, 8, notes_btn)
+
+                history_btn = QPushButton("View History")
+                history_btn.setStyleSheet("""
+                    background-color: #808080;  /* Grey */
+                    color: #FFFFFF;  /* White text */
+                    padding: 2px 20px;
+                    border-radius: 3px;
+                    font-size: 12px;
+                    font-family: Arial, sans-serif;
+                    font-weight: bold;
+                    border: 2px solid #FFFFFF;  /* White border */
+                    min-height: 40px;
+                """)
+                history_btn.clicked.connect(lambda _, aid=app[0]: self.view_note_history(aid))
+                self.table.setCellWidget(row, 9, history_btn)
+
+                self.table.setRowHeight(row, 60)
+                self.table.setColumnWidth(7, 150)
+                self.table.setColumnWidth(8, 150)
+                self.table.setColumnWidth(9, 150)
+
+        except sqlite3.Error as e:
+            QMessageBox.critical(self, "Database Error", f"Error sorting applications: {str(e)}")
 
     def view_details(self, application_id):
         dialog = DetailsDialog(application_id, self)
