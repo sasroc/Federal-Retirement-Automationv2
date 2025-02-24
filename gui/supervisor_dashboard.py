@@ -176,16 +176,33 @@ class DetailsDialog(QDialog):
             self.parent().load_applications()
 
 class SupervisorDashboard(QWidget):
-    def __init__(self):
+    def __init__(self, username):
         super().__init__()
+        self.username = username  # Store the username
+        
         self.setStyleSheet("background-color: #1e1e2f; font-family: Arial;")
         layout = QVBoxLayout()
         layout.setContentsMargins(20, 20, 20, 20)
         layout.setSpacing(15)
         self.setLayout(layout)
 
+        # Profile label at top right
+        self.profile_label = QLabel(f"👤 {self.username}")
+        self.profile_label.setStyleSheet("""
+            color: #ffffff;
+            font-size: 16px;
+            font-weight: bold;
+            padding: 10px;
+            background-color: #333333;
+            border-radius: 5px;
+        """)
+        self.profile_label.setCursor(Qt.CursorShape.PointingHandCursor)  # Make it look clickable
+        self.profile_label.setAlignment(Qt.AlignmentFlag.AlignRight)
+        self.profile_label.mousePressEvent = lambda event: None  # Placeholder for future functionality
+        layout.addWidget(self.profile_label, alignment=Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignRight)
+
         self.table = QTableWidget()
-        self.table.setColumnCount(10)  # Restored to 10 columns for Note History
+        self.table.setColumnCount(10)
         self.table.setHorizontalHeaderLabels(["App ID", "Name", "Age", "Years", "Salary", "Benefits", "Status", "Actions", "Notes", "Note History"])
         self.table.setAlternatingRowColors(True)
         self.table.setStyleSheet("""
@@ -211,10 +228,8 @@ class SupervisorDashboard(QWidget):
                 color: #ffffff;
             }
         """)
-        # Disable default sorting to ensure it only happens on arrow clicks
         self.table.setSortingEnabled(False)
 
-        # Set custom header for the table
         custom_header = CustomHeaderView(Qt.Orientation.Horizontal, self.table)
         self.table.setHorizontalHeader(custom_header)
 
@@ -289,14 +304,14 @@ class SupervisorDashboard(QWidget):
 
                 history_btn = QPushButton("View History")
                 history_btn.setStyleSheet("""
-                    background-color: #808080;  /* Grey */
-                    color: #FFFFFF;  /* White text */
+                    background-color: #808080;
+                    color: #FFFFFF;
                     padding: 2px 20px;
                     border-radius: 3px;
                     font-size: 12px;
                     font-family: Arial, sans-serif;
                     font-weight: bold;
-                    border: 2px solid #FFFFFF;  /* White border */
+                    border: 2px solid #FFFFFF;
                     min-height: 40px;
                 """)
                 history_btn.clicked.connect(lambda _, aid=app[0]: self.view_note_history(aid))
@@ -313,7 +328,6 @@ class SupervisorDashboard(QWidget):
             conn.close()
 
     def sort_by_status(self, ascending=True):
-        """Sort applications by status alphabetically (A-Z) or reverse (Z-A)."""
         try:
             conn = sqlite3.connect('retirement.db')
             cursor = conn.cursor()
@@ -372,14 +386,14 @@ class SupervisorDashboard(QWidget):
 
                 history_btn = QPushButton("View History")
                 history_btn.setStyleSheet("""
-                    background-color: #808080;  /* Grey */
-                    color: #FFFFFF;  /* White text */
+                    background-color: #808080;
+                    color: #FFFFFF;
                     padding: 2px 20px;
                     border-radius: 3px;
                     font-size: 12px;
                     font-family: Arial, sans-serif;
                     font-weight: bold;
-                    border: 2px solid #FFFFFF;  /* White border */
+                    border: 2px solid #FFFFFF;
                     min-height: 40px;
                 """)
                 history_btn.clicked.connect(lambda _, aid=app[0]: self.view_note_history(aid))

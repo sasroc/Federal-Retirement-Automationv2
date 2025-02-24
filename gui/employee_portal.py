@@ -1,3 +1,5 @@
+# Federal-Retirement-Automationv2/gui/employee_portal.py
+
 from PyQt6.QtWidgets import QWidget, QVBoxLayout, QLabel, QLineEdit, QPushButton, QFileDialog, QMessageBox, QFormLayout, QCheckBox, QDateEdit
 from PyQt6.QtCore import Qt, QDate
 from datetime import datetime
@@ -7,8 +9,10 @@ from utils.ocr_processor import extract_text_from_image, parse_ocr_text
 import sqlite3
 
 class EmployeePortal(QWidget):
-    def __init__(self):
+    def __init__(self, username):
         super().__init__()
+        self.username = username  # Store the username passed from login
+
         # Base stylesheet for the widget, ensuring a dark background for contrast
         self.setStyleSheet("""
             background-color: #1e1e2f;  /* Dark background for modern look */
@@ -20,6 +24,21 @@ class EmployeePortal(QWidget):
         layout.setContentsMargins(20, 20, 20, 20)
         layout.setSpacing(15)
         self.setLayout(layout)
+
+        # Profile label at top right
+        self.profile_label = QLabel(f"👤 {self.username}")
+        self.profile_label.setStyleSheet("""
+            color: #ffffff;
+            font-size: 16px;
+            font-weight: bold;
+            padding: 10px;
+            background-color: #333333;
+            border-radius: 5px;
+        """)
+        self.profile_label.setCursor(Qt.CursorShape.PointingHandCursor)  # Make it look clickable
+        self.profile_label.setAlignment(Qt.AlignmentFlag.AlignRight)
+        self.profile_label.mousePressEvent = lambda event: None  # Placeholder for future functionality
+        layout.addWidget(self.profile_label, alignment=Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignRight)
 
         # Header
         header = QLabel("Retirement Application")

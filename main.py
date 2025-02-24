@@ -16,29 +16,31 @@ class RetirementApp(QMainWindow):
         self.stack = QStackedWidget()
         self.setCentralWidget(self.stack)
 
-        # Create widgets for each role
-        self.employee_portal = EmployeePortal()
-        self.processor_dashboard = ProcessorDashboard()
-        self.supervisor_dashboard = SupervisorDashboard()
-
-        # Add widgets to stack
-        self.stack.addWidget(self.employee_portal)
-        self.stack.addWidget(self.processor_dashboard)
-        self.stack.addWidget(self.supervisor_dashboard)
+        # Widgets will be initialized with username after login
+        self.employee_portal = None
+        self.processor_dashboard = None
+        self.supervisor_dashboard = None
 
         # Show login dialog
         login_dialog = LoginDialog(self)
         if login_dialog.exec() == QDialog.DialogCode.Accepted:
             role = login_dialog.role
+            username = login_dialog.username_input.text()  # Get username from login dialog
             if role == "employee":
+                self.employee_portal = EmployeePortal(username)
+                self.stack.addWidget(self.employee_portal)
                 self.stack.setCurrentWidget(self.employee_portal)
-                self.showMaximized()  # Open EmployeePortal in maximized windowed mode
+                self.showMaximized()
             elif role == "processor":
+                self.processor_dashboard = ProcessorDashboard(username)
+                self.stack.addWidget(self.processor_dashboard)
                 self.stack.setCurrentWidget(self.processor_dashboard)
-                self.showMaximized()  # Open ProcessorDashboard in maximized windowed mode
+                self.showMaximized()
             elif role == "supervisor":
+                self.supervisor_dashboard = SupervisorDashboard(username)
+                self.stack.addWidget(self.supervisor_dashboard)
                 self.stack.setCurrentWidget(self.supervisor_dashboard)
-                self.showMaximized()  # Open SupervisorDashboard in maximized windowed mode
+                self.showMaximized()
         else:
             # If login fails or is canceled, exit the application entirely
             self.close()

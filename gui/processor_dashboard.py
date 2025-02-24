@@ -81,7 +81,6 @@ class DetailsDialog(QDialog):
             conn = sqlite3.connect('retirement.db')
             cursor = conn.cursor()
             
-            # Explicitly select the columns we need from Applications
             cursor.execute("""
                 SELECT application_id, employee_id, years_service, retirement_date, salary, submission_date, status, 
                        agency, position_title, survivor_benefit, fehb_continue, fegli_continue, bank_name, 
@@ -90,7 +89,6 @@ class DetailsDialog(QDialog):
                 FROM Applications WHERE application_id = ?""", (application_id,))
             app = cursor.fetchone()
 
-            # Explicitly select the columns we need from Employees
             cursor.execute("""
                 SELECT employee_id, first_name, last_name, dob, ssn, address, city, state, zip_code, phone, email, 
                        is_us_citizen
@@ -101,12 +99,11 @@ class DetailsDialog(QDialog):
             if not app or not emp:
                 layout.addWidget(QLabel("No application or employee data found.", styleSheet="color: #ffffff; font-size: 18px;"))
             else:
-                age = calculate_age(emp[3])  # dob is the 4th column (index 3) in Employees
-                years_service = app[2]  # years_service is the 3rd column (index 2) in Applications
+                age = calculate_age(emp[3])
+                years_service = app[2]
                 eligible = is_eligible(age, years_service)
-                annuity = calculate_annuity(years_service, app[4], age) if eligible else 0  # salary is the 5th column (index 4)
+                annuity = calculate_annuity(years_service, app[4], age) if eligible else 0
 
-                # Use the correct column indices or names for each field, matching the original format but with all fields
                 details = f"""
                 Application ID: {app[0]}
                 Employee: {emp[1]} {emp[2]}
@@ -134,7 +131,6 @@ class DetailsDialog(QDialog):
                 """
                 layout.addWidget(QLabel(details, styleSheet="color: #ffffff; font-size: 16px;"))
 
-            # Action buttons
             btn_layout = QHBoxLayout()
             
             submit_btn = QPushButton("Submit to Supervisor")
@@ -176,16 +172,33 @@ class DetailsDialog(QDialog):
             self.parent().load_applications()
 
 class ProcessorDashboard(QWidget):
-    def __init__(self):
+    def __init__(self, username):
         super().__init__()
+        self.username = username  # Store the username
+        
         self.setStyleSheet("background-color: #1e1e2f; font-family: Arial;")
         layout = QVBoxLayout()
         layout.setContentsMargins(20, 20, 20, 20)
         layout.setSpacing(15)
         self.setLayout(layout)
 
+        # Profile label at top right
+        self.profile_label = QLabel(f"👤 {self.username}")
+        self.profile_label.setStyleSheet("""
+            color: #ffffff;
+            font-size: 16px;
+            font-weight: bold;
+            padding: 10px;
+            background-color: #333333;
+            border-radius: 5px;
+        """)
+        self.profile_label.setCursor(Qt.CursorShape.PointingHandCursor)  # Make it look clickable
+        self.profile_label.setAlignment(Qt.AlignmentFlag.AlignRight)
+        self.profile_label.mousePressEvent = lambda event: None  # Placeholder for future functionality
+        layout.addWidget(self.profile_label, alignment=Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignRight)
+
         self.table = QTableWidget()
-        self.table.setColumnCount(10)  # Restored to 10 columns (App ID, Name, Age, Years, Salary, Benefits, Status, Actions, Notes, Note History)
+        self.table.setColumnCount(10)
         self.table.setHorizontalHeaderLabels(["App ID", "Name", "Age", "Years", "Salary", "Benefits", "Status", "Actions", "Notes", "Note History"])
         self.table.setAlternatingRowColors(True)
         self.table.setStyleSheet("""
@@ -211,10 +224,8 @@ class ProcessorDashboard(QWidget):
                 color: #ffffff;
             }
         """)
-        # Disable default sorting to ensure it only happens on arrow clicks
         self.table.setSortingEnabled(False)
 
-        # Set custom header for the table
         custom_header = CustomHeaderView(Qt.Orientation.Horizontal, self.table)
         self.table.setHorizontalHeader(custom_header)
 
@@ -255,7 +266,7 @@ class ProcessorDashboard(QWidget):
 
                 for col, data in enumerate([app[0], app[1], age, years_service, f"${app[4]:,.2f}", f"${annuity:,.2f}" if eligible else "N/A", app[6]]):
                     item = QTableWidgetItem(str(data) if data is not None else "N/A")
-                    item.setFlags(item.flags() & ~Qt.ItemFlag.ItemIsEditable)  # Make item non-editable
+                    item.setFlags(item.flags() & ~Qt.ItemFlag.ItemIsEditable)
                     self.table.setItem(row, col, item)
 
                 view_btn = QPushButton("View Details")
@@ -290,14 +301,14 @@ class ProcessorDashboard(QWidget):
 
                 history_btn = QPushButton("View History")
                 history_btn.setStyleSheet("""
-                    background-color: #808080;  /* Grey */
-                    color: #FFFFFF;  /* White text */
+                    background-color: #808080;
+                    color: #FFFFFF;
                     padding: 2px 20px;
                     border-radius: 3px;
                     font-size: 12px;
                     font-family: Arial, sans-serif;
                     font-weight: bold;
-                    border: 2px solid #FFFFFF;  /* White border */
+                    border: 2px solid #FFFFFF;
                     min-height: 40px;
                 """)
                 history_btn.clicked.connect(lambda _, aid=app[0]: self.view_note_history(aid))
@@ -314,7 +325,6 @@ class ProcessorDashboard(QWidget):
             conn.close()
 
     def sort_by_status(self, ascending=True):
-        """Sort applications by status alphabetically (A-Z) or reverse (Z-A)."""
         try:
             conn = sqlite3.connect('retirement.db')
             cursor = conn.cursor()
@@ -341,7 +351,7 @@ class ProcessorDashboard(QWidget):
 
                 for col, data in enumerate([app[0], app[1], age, years_service, f"${app[4]:,.2f}", f"${annuity:,.2f}" if eligible else "N/A", app[6]]):
                     item = QTableWidgetItem(str(data) if data is not None else "N/A")
-                    item.setFlags(item.flags() & ~Qt.ItemFlag.ItemIsEditable)  # Make item non-editable
+                    item.setFlags(item.flags() & ~Qt.ItemFlag.ItemIsEditable)
                     self.table.setItem(row, col, item)
 
                 view_btn = QPushButton("View Details")
@@ -376,14 +386,14 @@ class ProcessorDashboard(QWidget):
 
                 history_btn = QPushButton("View History")
                 history_btn.setStyleSheet("""
-                    background-color: #808080;  /* Grey */
-                    color: #FFFFFF;  /* White text */
+                    background-color: #808080;
+                    color: #FFFFFF;
                     padding: 2px 20px;
                     border-radius: 3px;
                     font-size: 12px;
                     font-family: Arial, sans-serif;
                     font-weight: bold;
-                    border: 2px solid #FFFFFF;  /* White border */
+                    border: 2px solid #FFFFFF;
                     min-height: 40px;
                 """)
                 history_btn.clicked.connect(lambda _, aid=app[0]: self.view_note_history(aid))
