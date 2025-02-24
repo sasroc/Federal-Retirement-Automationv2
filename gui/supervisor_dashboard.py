@@ -2,7 +2,7 @@ from PyQt6.QtWidgets import QWidget, QVBoxLayout, QTableWidget, QTableWidgetItem
 from PyQt6.QtCore import Qt
 import sqlite3
 from utils.calculations import calculate_age
-from utils.dialogs import NoteDialog, ViewNotesDialog
+from utils.dialogs import NoteDialog, ViewNotesDialog, NoteHistoryDialog
 
 class DetailsDialog(QDialog):
     def __init__(self, application_id, parent=None):
@@ -101,6 +101,13 @@ class DetailsDialog(QDialog):
     def deny_application(self):
         note_dialog = NoteDialog(self.application_id, note_type="denial", parent=self)
         if note_dialog.exec() == QDialog.DialogCode.Accepted:
+            conn = sqlite3.connect('retirement.db')
+            cursor = conn.cursor()
+            cursor.execute("UPDATE Applications SET status = 'Denied by Supervisor' WHERE application_id = ?", 
+                           (self.application_id,))
+            conn.commit()
+            conn.close()
+            QMessageBox.information(self, "Denial", "Application denied and returned to processor with note.")
             self.accept()
             self.parent().load_applications()
 
@@ -114,8 +121,8 @@ class SupervisorDashboard(QWidget):
         self.setLayout(layout)
 
         self.table = QTableWidget()
-        self.table.setColumnCount(9)
-        self.table.setHorizontalHeaderLabels(["App ID", "Name", "Age", "Years", "Salary", "Benefits", "Status", "Actions", "Notes"])
+        self.table.setColumnCount(10)  # Increased to 10 for Note History
+        self.table.setHorizontalHeaderLabels(["App ID", "Name", "Age", "Years", "Salary", "Benefits", "Status", "Actions", "Notes", "Note History"])
         self.table.setAlternatingRowColors(True)
         self.table.setStyleSheet("""
             QTableWidget {
@@ -209,9 +216,25 @@ class SupervisorDashboard(QWidget):
                 notes_btn.clicked.connect(lambda _, aid=app[0]: self.view_application_notes(aid))
                 self.table.setCellWidget(row, 8, notes_btn)
 
+                history_btn = QPushButton("View History")
+                history_btn.setStyleSheet("""
+                    background-color: #808080;  /* Grey */
+                    color: #FFFFFF;  /* White text */
+                    padding: 2px 20px;
+                    border-radius: 3px;
+                    font-size: 12px;
+                    font-family: Arial, sans-serif;
+                    font-weight: bold;
+                    border: 2px solid #FFFFFF;  /* White border */
+                    min-height: 40px;
+                """)
+                history_btn.clicked.connect(lambda _, aid=app[0]: self.view_note_history(aid))
+                self.table.setCellWidget(row, 9, history_btn)
+
                 self.table.setRowHeight(row, 60)
                 self.table.setColumnWidth(7, 150)
                 self.table.setColumnWidth(8, 150)
+                self.table.setColumnWidth(9, 150)
 
             conn.close()
         except sqlite3.Error as e:
@@ -224,4 +247,8 @@ class SupervisorDashboard(QWidget):
 
     def view_application_notes(self, application_id):
         dialog = ViewNotesDialog(application_id, note_type="denial", parent=self)
+        dialog.exec()
+
+    def view_note_history(self, application_id):
+        dialog = NoteHistoryDialog(application_id, parent=self)
         dialog.exec()

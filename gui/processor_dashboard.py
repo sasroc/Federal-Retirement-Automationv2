@@ -2,7 +2,7 @@ from PyQt6.QtWidgets import QWidget, QVBoxLayout, QTableWidget, QTableWidgetItem
 from PyQt6.QtCore import Qt
 import sqlite3
 from utils.calculations import calculate_age, is_eligible, calculate_annuity
-from utils.dialogs import NoteDialog, ViewNotesDialog
+from utils.dialogs import NoteDialog, ViewNotesDialog, NoteHistoryDialog
 
 class DetailsDialog(QDialog):
     def __init__(self, application_id, parent=None):
@@ -92,10 +92,23 @@ class DetailsDialog(QDialog):
     def submit_to_supervisor(self):
         conn = sqlite3.connect('retirement.db')
         cursor = conn.cursor()
-        cursor.execute("UPDATE Applications SET status = 'Pending' WHERE application_id = ?", (self.application_id,))
+        cursor.execute("SELECT status FROM Applications WHERE application_id = ?", (self.application_id,))
+        current_status = cursor.fetchone()[0]
+        
+        if current_status == "Denied by Supervisor":
+            # Clear denial_note but preserve note_history
+            cursor.execute("""
+                UPDATE Applications 
+                SET status = 'Pending', denial_note = NULL 
+                WHERE application_id = ?
+            """, (self.application_id,))
+            QMessageBox.information(self, "Success", "Application resubmitted to Supervisor with denial note cleared.")
+        else:
+            cursor.execute("UPDATE Applications SET status = 'Pending' WHERE application_id = ?", (self.application_id,))
+            QMessageBox.information(self, "Success", "Application submitted to Supervisor.")
+        
         conn.commit()
         conn.close()
-        QMessageBox.information(self, "Success", "Application submitted to Supervisor.")
         self.accept()
         self.parent().load_applications()
 
@@ -115,8 +128,8 @@ class ProcessorDashboard(QWidget):
         self.setLayout(layout)
 
         self.table = QTableWidget()
-        self.table.setColumnCount(9)
-        self.table.setHorizontalHeaderLabels(["App ID", "Name", "Age", "Years", "Salary", "Benefits", "Status", "Actions", "Notes"])
+        self.table.setColumnCount(10)  # Increased to 10 for Note History
+        self.table.setHorizontalHeaderLabels(["App ID", "Name", "Age", "Years", "Salary", "Benefits", "Status", "Actions", "Notes", "Note History"])
         self.table.setAlternatingRowColors(True)
         self.table.setStyleSheet("""
             QTableWidget {
@@ -158,7 +171,7 @@ class ProcessorDashboard(QWidget):
                 SELECT a.application_id, e.first_name || ' ' || e.last_name, e.dob, a.years_service, a.salary, a.benefits, a.status 
                 FROM Applications a 
                 JOIN Employees e ON a.employee_id = e.employee_id 
-                WHERE a.status IN ('Processing', 'Needs Additional Info')
+                WHERE a.status IN ('Processing', 'Needs Additional Info', 'Denied by Supervisor')
             """)
             apps = cursor.fetchall()
             
@@ -210,9 +223,25 @@ class ProcessorDashboard(QWidget):
                 notes_btn.clicked.connect(lambda _, aid=app[0]: self.view_application_notes(aid))
                 self.table.setCellWidget(row, 8, notes_btn)
 
+                history_btn = QPushButton("View History")
+                history_btn.setStyleSheet("""
+                    background-color: #808080;  /* Grey */
+                    color: #FFFFFF;  /* White text */
+                    padding: 2px 20px;
+                    border-radius: 3px;
+                    font-size: 12px;
+                    font-family: Arial, sans-serif;
+                    font-weight: bold;
+                    border: 2px solid #FFFFFF;  /* White border */
+                    min-height: 40px;
+                """)
+                history_btn.clicked.connect(lambda _, aid=app[0]: self.view_note_history(aid))
+                self.table.setCellWidget(row, 9, history_btn)
+
                 self.table.setRowHeight(row, 60)
                 self.table.setColumnWidth(7, 150)
                 self.table.setColumnWidth(8, 150)
+                self.table.setColumnWidth(9, 150)
 
             conn.close()
         except sqlite3.Error as e:
@@ -224,5 +253,16 @@ class ProcessorDashboard(QWidget):
         dialog.exec()
 
     def view_application_notes(self, application_id):
-        dialog = ViewNotesDialog(application_id, note_type="additional_info", parent=self)
+        conn = sqlite3.connect('retirement.db')
+        cursor = conn.cursor()
+        cursor.execute("SELECT status FROM Applications WHERE application_id = ?", (application_id,))
+        status = cursor.fetchone()[0]
+        conn.close()
+        
+        note_type = "denial" if status == "Denied by Supervisor" else "additional_info"
+        dialog = ViewNotesDialog(application_id, note_type=note_type, parent=self)
+        dialog.exec()
+
+    def view_note_history(self, application_id):
+        dialog = NoteHistoryDialog(application_id, parent=self)
         dialog.exec()

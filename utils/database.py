@@ -23,7 +23,7 @@ def create_database():
     ''')
     
     # Applications table
-    # Note: 'additional_info_note' is a new column for processor notes
+    # Note: 'additional_info_note' for processor notes, 'note_history' for denial log
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS Applications (
             application_id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -50,6 +50,7 @@ def create_database():
             hire_date TEXT,
             denial_note TEXT,
             additional_info_note TEXT,
+            note_history TEXT,  -- New column for logging denial history
             FOREIGN KEY (employee_id) REFERENCES Employees (employee_id)
         )
     ''')
@@ -62,6 +63,8 @@ def create_database():
     application_columns = [col[1] for col in cursor.fetchall()]
     if 'additional_info_note' not in application_columns:
         cursor.execute("ALTER TABLE Applications ADD COLUMN additional_info_note TEXT")
+    if 'note_history' not in application_columns:
+        cursor.execute("ALTER TABLE Applications ADD COLUMN note_history TEXT")
     
     # Existing migration for other columns
     employee_new_columns = {
