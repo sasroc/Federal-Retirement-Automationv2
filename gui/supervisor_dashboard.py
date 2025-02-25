@@ -15,7 +15,7 @@ class CustomHeaderView(QHeaderView):
 
     def paintSection(self, painter, rect, logicalIndex):
         painter.save()
-        if logicalIndex == 6:  # Status column
+        if logicalIndex == 7:  # Status column (shifted from 6 due to new SSN column)
             painter.fillRect(rect, QBrush(Qt.GlobalColor.darkGray))  # Match header background
             pen = QPen(Qt.GlobalColor.white)
             painter.setPen(pen)
@@ -54,7 +54,7 @@ class CustomHeaderView(QHeaderView):
 
     def mousePressEvent(self, event):
         logical_index = self.logicalIndexAt(event.pos())
-        if logical_index == 6:  # Status column
+        if logical_index == 7:  # Status column (shifted from 6)
             pos = event.pos()
             if self.up_arrow_rect.contains(pos):
                 self.sort_by_status(True)  # A-Z
@@ -106,6 +106,7 @@ class DetailsDialog(QDialog):
                 details = f"""
                 Application ID: {app[0]}
                 Employee: {emp[1]} {emp[2]}
+                SSN: {emp[4]}
                 Date of Birth: {emp[3]} (Age: {age})
                 Years of Service: {years_service}
                 Retirement Date: {app[3]}
@@ -202,8 +203,8 @@ class SupervisorDashboard(QWidget):
         layout.addWidget(self.profile_label, alignment=Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignRight)
 
         self.table = QTableWidget()
-        self.table.setColumnCount(10)
-        self.table.setHorizontalHeaderLabels(["App ID", "Name", "Age", "Years", "Salary", "Benefits", "Status", "Actions", "Notes", "Note History"])
+        self.table.setColumnCount(11)  # Increased from 10 to 11 for SSN column
+        self.table.setHorizontalHeaderLabels(["App ID", "Name", "SSN", "Age", "Years", "Salary", "Benefits", "Status", "Actions", "Notes", "Note History"])
         self.table.setAlternatingRowColors(True)
         self.table.setStyleSheet("""
             QTableWidget {
@@ -253,7 +254,7 @@ class SupervisorDashboard(QWidget):
             conn = sqlite3.connect('retirement.db')
             cursor = conn.cursor()
             cursor.execute("""
-                SELECT a.application_id, e.first_name || ' ' || e.last_name, e.dob, a.years_service, a.salary, a.benefits, a.status 
+                SELECT a.application_id, e.first_name || ' ' || e.last_name, e.ssn, e.dob, a.years_service, a.salary, a.benefits, a.status 
                 FROM Applications a 
                 JOIN Employees e ON a.employee_id = e.employee_id 
                 WHERE a.status IN ('Pending', 'Approved', 'Denied')
@@ -265,10 +266,10 @@ class SupervisorDashboard(QWidget):
             for row, app in enumerate(apps):
                 if not app:
                     continue
-                age = calculate_age(app[2])
-                benefits = app[5] if app[5] is not None else 0.0
+                age = calculate_age(app[3])
+                benefits = app[6] if app[6] is not None else 0.0
                 benefits_str = f"${float(benefits):,.2f}" if benefits else "N/A"
-                for col, data in enumerate([app[0], app[1], age, app[3], f"${app[4]:,.2f}", benefits_str, app[6]]):
+                for col, data in enumerate([app[0], app[1], app[2], age, app[4], f"${app[5]:,.2f}", benefits_str, app[7]]):
                     item = QTableWidgetItem(str(data) if data is not None else "N/A")
                     self.table.setItem(row, col, item)
 
@@ -285,7 +286,7 @@ class SupervisorDashboard(QWidget):
                     min-height: 40px;
                 """)
                 view_btn.clicked.connect(lambda _, a=app: self.view_details(a[0]))
-                self.table.setCellWidget(row, 7, view_btn)
+                self.table.setCellWidget(row, 8, view_btn)  # Shifted from 7 to 8
 
                 notes_btn = QPushButton("View Notes")
                 notes_btn.setStyleSheet("""
@@ -300,7 +301,7 @@ class SupervisorDashboard(QWidget):
                     min-height: 40px;
                 """)
                 notes_btn.clicked.connect(lambda _, aid=app[0]: self.view_application_notes(aid))
-                self.table.setCellWidget(row, 8, notes_btn)
+                self.table.setCellWidget(row, 9, notes_btn)  # Shifted from 8 to 9
 
                 history_btn = QPushButton("View History")
                 history_btn.setStyleSheet("""
@@ -315,12 +316,12 @@ class SupervisorDashboard(QWidget):
                     min-height: 40px;
                 """)
                 history_btn.clicked.connect(lambda _, aid=app[0]: self.view_note_history(aid))
-                self.table.setCellWidget(row, 9, history_btn)
+                self.table.setCellWidget(row, 10, history_btn)  # Shifted from 9 to 10
 
                 self.table.setRowHeight(row, 60)
-                self.table.setColumnWidth(7, 150)
-                self.table.setColumnWidth(8, 150)
-                self.table.setColumnWidth(9, 150)
+                self.table.setColumnWidth(8, 150)  # Actions
+                self.table.setColumnWidth(9, 150)  # Notes
+                self.table.setColumnWidth(10, 150) # Note History
 
             conn.close()
         except sqlite3.Error as e:
@@ -333,7 +334,7 @@ class SupervisorDashboard(QWidget):
             cursor = conn.cursor()
             order = "ASC" if ascending else "DESC"
             cursor.execute(f"""
-                SELECT a.application_id, e.first_name || ' ' || e.last_name, e.dob, a.years_service, a.salary, a.benefits, a.status 
+                SELECT a.application_id, e.first_name || ' ' || e.last_name, e.ssn, e.dob, a.years_service, a.salary, a.benefits, a.status 
                 FROM Applications a 
                 JOIN Employees e ON a.employee_id = e.employee_id 
                 WHERE a.status IN ('Pending', 'Approved', 'Denied')
@@ -347,10 +348,10 @@ class SupervisorDashboard(QWidget):
             for row, app in enumerate(apps):
                 if not app:
                     continue
-                age = calculate_age(app[2])
-                benefits = app[5] if app[5] is not None else 0.0
+                age = calculate_age(app[3])
+                benefits = app[6] if app[6] is not None else 0.0
                 benefits_str = f"${float(benefits):,.2f}" if benefits else "N/A"
-                for col, data in enumerate([app[0], app[1], age, app[3], f"${app[4]:,.2f}", benefits_str, app[6]]):
+                for col, data in enumerate([app[0], app[1], app[2], age, app[4], f"${app[5]:,.2f}", benefits_str, app[7]]):
                     item = QTableWidgetItem(str(data) if data is not None else "N/A")
                     self.table.setItem(row, col, item)
 
@@ -367,7 +368,7 @@ class SupervisorDashboard(QWidget):
                     min-height: 40px;
                 """)
                 view_btn.clicked.connect(lambda _, a=app: self.view_details(a[0]))
-                self.table.setCellWidget(row, 7, view_btn)
+                self.table.setCellWidget(row, 8, view_btn)  # Shifted from 7 to 8
 
                 notes_btn = QPushButton("View Notes")
                 notes_btn.setStyleSheet("""
@@ -382,7 +383,7 @@ class SupervisorDashboard(QWidget):
                     min-height: 40px;
                 """)
                 notes_btn.clicked.connect(lambda _, aid=app[0]: self.view_application_notes(aid))
-                self.table.setCellWidget(row, 8, notes_btn)
+                self.table.setCellWidget(row, 9, notes_btn)  # Shifted from 8 to 9
 
                 history_btn = QPushButton("View History")
                 history_btn.setStyleSheet("""
@@ -397,12 +398,12 @@ class SupervisorDashboard(QWidget):
                     min-height: 40px;
                 """)
                 history_btn.clicked.connect(lambda _, aid=app[0]: self.view_note_history(aid))
-                self.table.setCellWidget(row, 9, history_btn)
+                self.table.setCellWidget(row, 10, history_btn)  # Shifted from 9 to 10
 
                 self.table.setRowHeight(row, 60)
-                self.table.setColumnWidth(7, 150)
-                self.table.setColumnWidth(8, 150)
-                self.table.setColumnWidth(9, 150)
+                self.table.setColumnWidth(8, 150)  # Actions
+                self.table.setColumnWidth(9, 150)  # Notes
+                self.table.setColumnWidth(10, 150) # Note History
 
         except sqlite3.Error as e:
             QMessageBox.critical(self, "Database Error", f"Error sorting applications: {str(e)}")
