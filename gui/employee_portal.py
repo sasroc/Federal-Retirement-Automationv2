@@ -126,6 +126,7 @@ class EmployeePortal(QWidget):
         self.years_service = QLineEdit()
         self.years_service.setReadOnly(True)  # Calculated field, not editable
         self.years_service.setPlaceholderText("Calculated automatically")
+        self.years_service.setMinimumHeight(28)
         self.years_service.setStyleSheet("""
             QLineEdit {
                 background-color: #444444;
@@ -133,7 +134,7 @@ class EmployeePortal(QWidget):
                 padding: 8px;
                 border: 2px solid #777777;
                 border-radius: 6px;
-                font-size: 14px;
+                font-size: 10px;
             }
         """)
         form_layout.addRow(QLabel("Years of Service:", styleSheet="color: #ffffff;"), self.years_service)
