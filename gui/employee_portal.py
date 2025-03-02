@@ -1,31 +1,29 @@
 # Federal-Retirement-Automationv2/gui/employee_portal.py
 
-from PyQt6.QtWidgets import QWidget, QVBoxLayout, QLabel, QLineEdit, QPushButton, QFileDialog, QMessageBox, QFormLayout, QCheckBox, QDateEdit
-from PyQt6.QtCore import Qt, QDate
+from PyQt6.QtWidgets import QWidget, QVBoxLayout, QLabel, QLineEdit, QPushButton, QFileDialog, QMessageBox, QFormLayout, QCheckBox, QDateEdit, QMenu
+from PyQt6.QtCore import Qt, QDate, QPoint
 from datetime import datetime
 from models.employee import Employee
 from models.application import Application
 from utils.ocr_processor import extract_text_from_image, parse_ocr_text
 import sqlite3
+from gui.login_dialog import LoginDialog
 
 class EmployeePortal(QWidget):
     def __init__(self, username):
         super().__init__()
-        self.username = username  # Store the username passed from login
+        self.username = username
 
-        # Base stylesheet for the widget, ensuring a dark background for contrast
         self.setStyleSheet("""
-            background-color: #1e1e2f;  /* Dark background for modern look */
+            background-color: #1e1e2f;
             font-family: Arial;
         """)
         
-        # Main layout with margins and spacing
         layout = QVBoxLayout()
         layout.setContentsMargins(20, 20, 20, 20)
         layout.setSpacing(15)
         self.setLayout(layout)
 
-        # Profile label at top right
         self.profile_label = QLabel(f"👤 {self.username}")
         self.profile_label.setStyleSheet("""
             color: #ffffff;
@@ -35,28 +33,25 @@ class EmployeePortal(QWidget):
             background-color: #333333;
             border-radius: 5px;
         """)
-        self.profile_label.setCursor(Qt.CursorShape.PointingHandCursor)  # Make it look clickable
+        self.profile_label.setCursor(Qt.CursorShape.PointingHandCursor)
         self.profile_label.setAlignment(Qt.AlignmentFlag.AlignRight)
-        self.profile_label.mousePressEvent = lambda event: None  # Placeholder for future functionality
+        self.profile_label.mousePressEvent = self.show_profile_menu
         layout.addWidget(self.profile_label, alignment=Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignRight)
 
-        # Header
         header = QLabel("Retirement Application")
         header.setObjectName("header")
         header.setStyleSheet("""
             font-size: 20px; 
             font-weight: bold; 
-            color: #ffffff;  /* White text for header */
+            color: #ffffff;
         """)
         layout.addWidget(header)
 
-        # Form layout for input fields
         form_layout = QFormLayout()
         form_layout.setLabelAlignment(Qt.AlignmentFlag.AlignRight)
         form_layout.setVerticalSpacing(10)
         form_layout.setFormAlignment(Qt.AlignmentFlag.AlignCenter)
 
-        # Personal Information
         self.first_name = QLineEdit()
         self.first_name.setPlaceholderText("Enter your first name")
         form_layout.addRow(QLabel("First Name:", styleSheet="color: #ffffff;"), self.first_name)
@@ -68,7 +63,7 @@ class EmployeePortal(QWidget):
         self.dob = QDateEdit()
         self.dob.setCalendarPopup(True)
         self.dob.setDisplayFormat("yyyy-MM-dd")
-        self.dob.setDate(QDate.currentDate().addYears(-40))  # Default to ~40 years ago
+        self.dob.setDate(QDate.currentDate().addYears(-40))
         form_layout.addRow(QLabel("Date of Birth:", styleSheet="color: #ffffff;"), self.dob)
 
         self.ssn = QLineEdit()
@@ -102,7 +97,6 @@ class EmployeePortal(QWidget):
         self.is_us_citizen = QCheckBox()
         form_layout.addRow(QLabel("U.S. Citizen:", styleSheet="color: #ffffff;"), self.is_us_citizen)
 
-        # Employment Details
         self.agency = QLineEdit()
         self.agency.setPlaceholderText("e.g., Department of Defense")
         form_layout.addRow(QLabel("Agency:", styleSheet="color: #ffffff;"), self.agency)
@@ -114,17 +108,17 @@ class EmployeePortal(QWidget):
         self.hire_date = QDateEdit()
         self.hire_date.setCalendarPopup(True)
         self.hire_date.setDisplayFormat("yyyy-MM-dd")
-        self.hire_date.setDate(QDate.currentDate().addYears(-20))  # Default to ~20 years ago
+        self.hire_date.setDate(QDate.currentDate().addYears(-20))
         form_layout.addRow(QLabel("Hire/Start Date:", styleSheet="color: #ffffff;"), self.hire_date)
 
         self.retirement_date = QDateEdit()
         self.retirement_date.setCalendarPopup(True)
         self.retirement_date.setDisplayFormat("yyyy-MM-dd")
-        self.retirement_date.setDate(QDate.currentDate())  # Default to today
+        self.retirement_date.setDate(QDate.currentDate())
         form_layout.addRow(QLabel("Retirement Date:", styleSheet="color: #ffffff;"), self.retirement_date)
 
         self.years_service = QLineEdit()
-        self.years_service.setReadOnly(True)  # Calculated field, not editable
+        self.years_service.setReadOnly(True)
         self.years_service.setPlaceholderText("Calculated automatically")
         self.years_service.setMinimumHeight(28)
         self.years_service.setStyleSheet("""
@@ -143,7 +137,6 @@ class EmployeePortal(QWidget):
         self.salary.setPlaceholderText("Enter high-3 average salary")
         form_layout.addRow(QLabel("High-3 Salary:", styleSheet="color: #ffffff;"), self.salary)
 
-        # Benefits Elections
         self.survivor_benefit = QLineEdit()
         self.survivor_benefit.setPlaceholderText("e.g., Full, Partial, None")
         form_layout.addRow(QLabel("Survivor Benefit:", styleSheet="color: #ffffff;"), self.survivor_benefit)
@@ -152,7 +145,7 @@ class EmployeePortal(QWidget):
         form_layout.addRow(QLabel("Continue FEHB (5+ years coverage):", styleSheet="color: #ffffff;"), self.fehb_continue)
 
         self.fegli_continue = QCheckBox()
-        form_layout.addRow(QLabel("Continue FEGLI (5+ years coverage):", styleSheet="color: #ffffff;"), self.fegli_continue)
+        form_layout.addRow(QLabel("Continue FEGLI (5+ years coverage):", styleSheet="color: #ffffff;"), self.fehb_continue)
 
         self.bank_name = QLineEdit()
         self.bank_name.setPlaceholderText("Bank Name")
@@ -166,7 +159,6 @@ class EmployeePortal(QWidget):
         self.routing_number.setPlaceholderText("Routing Number")
         form_layout.addRow(QLabel("Routing Number:", styleSheet="color: #ffffff;"), self.routing_number)
 
-        # Military Service
         self.served_military = QCheckBox()
         form_layout.addRow(QLabel("Served in Armed Forces:", styleSheet="color: #ffffff;"), self.served_military)
 
@@ -176,7 +168,6 @@ class EmployeePortal(QWidget):
         self.waived_military_pay = QCheckBox()
         form_layout.addRow(QLabel("Waived Military Pay for CSRS/FERS:", styleSheet="color: #ffffff;"), self.waived_military_pay)
 
-        # Additional Information
         self.sick_leave_hours = QLineEdit()
         self.sick_leave_hours.setPlaceholderText("Unused Sick Leave Hours")
         form_layout.addRow(QLabel("Unused Sick Leave Hours:", styleSheet="color: #ffffff;"), self.sick_leave_hours)
@@ -186,7 +177,6 @@ class EmployeePortal(QWidget):
 
         layout.addLayout(form_layout)
 
-        # Buttons with improved styling
         submit_btn = QPushButton("Submit Application")
         submit_btn.setStyleSheet("""
             background-color: #4CAF50; 
@@ -198,32 +188,31 @@ class EmployeePortal(QWidget):
         submit_btn.clicked.connect(self.submit_application)
         layout.addWidget(submit_btn)
 
-        upload_btn = QPushButton("Upload Document or Image")
-        upload_btn.setStyleSheet("""
+        self.upload_btn = QPushButton("Upload Document or Image")
+        self.upload_btn.setStyleSheet("""
             background-color: #2196F3; 
             color: white; 
             padding: 12px; 
             border-radius: 8px; 
             font-size: 14px;
         """)
-        upload_btn.clicked.connect(self.upload_form)
-        layout.addWidget(upload_btn)
+        self.upload_btn.clicked.connect(self.upload_form)
+        layout.addWidget(self.upload_btn)
 
         layout.addStretch()
 
-        # Updated stylesheet for text boxes and widgets to ensure visibility
         self.setStyleSheet(self.styleSheet() + """
             QLineEdit { 
                 padding: 8px; 
                 border: 2px solid #777777; 
                 border-radius: 6px; 
                 color: white; 
-                background-color: #444444;  /* Dark grey background */
+                background-color: #444444;
                 font-size: 14px;
-                qproperty-alignment: AlignLeft;  /* Ensure text alignment */
+                qproperty-alignment: AlignLeft;
             }
             QLineEdit::placeholder { 
-                color: #AAAAAA;  /* Light grey for placeholder text */
+                color: #AAAAAA;
                 font-style: italic;
             }
             QDateEdit {
@@ -249,23 +238,52 @@ class EmployeePortal(QWidget):
             }
         """)
 
-        # Connect date changes to update years of service
         self.hire_date.dateChanged.connect(self.calculate_years_service)
         self.retirement_date.dateChanged.connect(self.calculate_years_service)
+
+        # Force layout update to ensure all widgets are properly displayed
+        layout.activate()
+        self.update()
+
+    def show_profile_menu(self, event):
+        """Display a dropdown menu directly below the profile label with a light grey background."""
+        menu = QMenu(self)
+        menu.setStyleSheet("""
+            QMenu {
+                background-color: #D3D3D3;
+                color: #000000;
+                border: 1px solid #777777;
+                border-radius: 5px;
+            }
+            QMenu::item {
+                padding: 8px 20px;
+            }
+            QMenu::item:selected {
+                background-color: #A9A9A9;
+            }
+        """)
+        logout_action = menu.addAction("Log Out")
+        logout_action.triggered.connect(self.logout)
+        
+        label_pos = self.profile_label.mapToGlobal(self.profile_label.rect().bottomLeft())
+        menu.exec(label_pos)
+
+    def logout(self):
+        """Handle logout by returning to the login screen."""
+        self.parent().parent().logout()
 
     def calculate_years_service(self):
         hire_date = self.hire_date.date().toPyDate()
         retirement_date = self.retirement_date.date().toPyDate()
         if hire_date and retirement_date and retirement_date > hire_date:
             time_diff = retirement_date - hire_date
-            years = time_diff.days / 365.25  # Approximate years, accounting for leap years
+            years = time_diff.days / 365.25
             self.years_service.setText(f"{years:.2f}")
         else:
             self.years_service.setText("")
 
     def submit_application(self):
         try:
-            # Personal Information
             employee = Employee(
                 self.first_name.text(), 
                 self.last_name.text(), 
@@ -281,7 +299,6 @@ class EmployeePortal(QWidget):
             )
             employee_id = employee.save()
 
-            # Application Details
             years_service = float(self.years_service.text()) if self.years_service.text() else 0
             app = Application(
                 employee_id,
@@ -303,7 +320,6 @@ class EmployeePortal(QWidget):
                 self.has_court_orders.isChecked()
             )
             app.save()
-            # Set initial status to "processing"
             conn = sqlite3.connect('retirement.db')
             cursor = conn.cursor()
             cursor.execute("UPDATE Applications SET status = 'Processing' WHERE employee_id = ? AND submission_date = (SELECT MAX(submission_date) FROM Applications WHERE employee_id = ?)", 
@@ -324,12 +340,12 @@ class EmployeePortal(QWidget):
             self.last_name.setText(data.get('last_name', ''))
             self.dob.setDate(QDate.fromString(data.get('dob', ''), "yyyy-MM-dd") or QDate.currentDate().addYears(-40))
             self.ssn.setText(data.get('ssn', ''))
-            self.address.setText(data.get('address', ''))  # Ensure address is correctly assigned
+            self.address.setText(data.get('address', ''))
             self.city.setText(data.get('city', ''))
             self.state.setText(data.get('state', ''))
             self.zip_code.setText(data.get('zip_code', ''))
             self.phone.setText(data.get('phone', ''))
-            self.email.setText(data.get('email', ''))  # Ensure email is correctly assigned
+            self.email.setText(data.get('email', ''))
             self.is_us_citizen.setChecked(data.get('is_us_citizen', False))
             self.agency.setText(data.get('agency', ''))
             self.position_title.setText(data.get('position_title', ''))
