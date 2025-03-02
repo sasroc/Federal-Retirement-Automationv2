@@ -1,21 +1,22 @@
 # Federal-Retirement-Automationv2/gui/processor_dashboard.py
 
-from PyQt6.QtWidgets import QWidget, QVBoxLayout, QTableWidget, QTableWidgetItem, QPushButton, QMessageBox, QDialog, QLabel, QHBoxLayout, QHeaderView, QLineEdit
+from PyQt6.QtWidgets import QWidget, QVBoxLayout, QTableWidget, QTableWidgetItem, QPushButton, QMessageBox, QDialog, QLabel, QHBoxLayout, QHeaderView, QLineEdit, QMenu
 from PyQt6.QtCore import Qt, QPoint, QRect, QSize
 from PyQt6.QtGui import QPainter, QFontMetrics, QPen, QBrush
 import sqlite3
 from utils.calculations import calculate_age, is_eligible, calculate_annuity
 from utils.dialogs import NoteDialog, ViewNotesDialog, NoteHistoryDialog
+from gui.login_dialog import LoginDialog  # Import for logout functionality
 
 class CustomHeaderView(QHeaderView):
     def __init__(self, orientation, parent=None):
         super().__init__(orientation, parent)
         self.setSectionsClickable(True)
-        self.sort_ascending = None  # Track sorting direction
-        self.search_rect = None  # Store search icon clickable area
-        self.search_hover = False  # Track hover state for search icon
-        self.up_arrow_hover = False  # Track hover state for up arrow
-        self.down_arrow_hover = False  # Track hover state for down arrow
+        self.sort_ascending = None
+        self.search_rect = None
+        self.search_hover = False
+        self.up_arrow_hover = False
+        self.down_arrow_hover = False
 
     def paintSection(self, painter, rect, logicalIndex):
         painter.save()
@@ -31,23 +32,18 @@ class CustomHeaderView(QHeaderView):
             text_rect = QRect(rect.left() + 5, rect.top() + (rect.height() - text_height) // 2, text_width, text_height)
             painter.drawText(text_rect, Qt.AlignmentFlag.AlignLeft, status_text)
 
-            # Create larger clickable areas for the arrows
-            arrow_size = 20  # Increased from 12
-            arrow_spacing = 4  # Increased spacing
+            arrow_size = 20
+            arrow_spacing = 4
             total_arrow_height = arrow_size * 2 + arrow_spacing
             arrow_y = rect.top() + (rect.height() - total_arrow_height) // 2
 
-            # Up arrow with larger hit area
             up_rect = QRect(rect.right() - arrow_size - 5, arrow_y, arrow_size, arrow_size)
-            # Add visual feedback when hovering
             if self.up_arrow_hover:
                 painter.fillRect(up_rect, QBrush(Qt.GlobalColor.darkBlue))
             painter.drawText(up_rect, Qt.AlignmentFlag.AlignCenter, "▲")
             self.up_arrow_rect = up_rect
 
-            # Down arrow with larger hit area
             down_rect = QRect(rect.right() - arrow_size - 5, arrow_y + arrow_size + arrow_spacing, arrow_size, arrow_size)
-            # Add visual feedback when hovering
             if self.down_arrow_hover:
                 painter.fillRect(down_rect, QBrush(Qt.GlobalColor.darkBlue))
             painter.drawText(down_rect, Qt.AlignmentFlag.AlignCenter, "▼")
@@ -68,24 +64,17 @@ class CustomHeaderView(QHeaderView):
             text_rect = QRect(rect.left() + 5, rect.top() + (rect.height() - text_height) // 2, text_width, text_height)
             painter.drawText(text_rect, Qt.AlignmentFlag.AlignLeft, ssn_text)
 
-            # Create a much larger clickable area that takes up the right portion of the header
-            icon_width = min(30, rect.width() // 3)  # Make it 1/3 of header width, max 30px
-            icon_height = rect.height() - 4  # Almost full height
+            icon_width = min(30, rect.width() // 3)
+            icon_height = rect.height() - 4
             
             search_x = rect.right() - icon_width - 2
             search_y = rect.top() + 2
             
-            # Create large clickable area
             search_rect = QRect(search_x, search_y, icon_width, icon_height)
-            
-            # Optional: visualize the hit area with subtle background (comment this out for production)
             if hasattr(self, 'search_hover') and self.search_hover:
                 painter.fillRect(search_rect, QBrush(Qt.GlobalColor.darkBlue))
                 
-            # Draw the icon centered in our larger hit area
             painter.drawText(search_rect, Qt.AlignmentFlag.AlignCenter, "🔍")
-            
-            # Store the clickable area
             self.search_rect = search_rect
 
             painter.setPen(QPen(Qt.GlobalColor.lightGray, 1))
@@ -96,12 +85,10 @@ class CustomHeaderView(QHeaderView):
         painter.restore()
 
     def mouseMoveEvent(self, event):
-        # Check for search icon hover
         search_hover_changed = False
         up_arrow_hover_changed = False
         down_arrow_hover_changed = False
         
-        # Handle search icon hover
         if self.search_rect and self.search_rect.contains(event.pos()):
             if not self.search_hover:
                 self.search_hover = True
@@ -112,7 +99,6 @@ class CustomHeaderView(QHeaderView):
                 self.search_hover = False
                 search_hover_changed = True
         
-        # Handle up arrow hover
         if hasattr(self, 'up_arrow_rect') and self.up_arrow_rect.contains(event.pos()):
             if not self.up_arrow_hover:
                 self.up_arrow_hover = True
@@ -123,7 +109,6 @@ class CustomHeaderView(QHeaderView):
                 self.up_arrow_hover = False
                 up_arrow_hover_changed = True
         
-        # Handle down arrow hover
         if hasattr(self, 'down_arrow_rect') and self.down_arrow_rect.contains(event.pos()):
             if not self.down_arrow_hover:
                 self.down_arrow_hover = True
@@ -134,11 +119,9 @@ class CustomHeaderView(QHeaderView):
                 self.down_arrow_hover = False
                 down_arrow_hover_changed = True
         
-        # If not hovering over any interactive element, reset cursor
         if not (self.search_hover or self.up_arrow_hover or self.down_arrow_hover):
             self.setCursor(Qt.CursorShape.ArrowCursor)
         
-        # Update display if hover state changed
         if search_hover_changed or up_arrow_hover_changed or down_arrow_hover_changed:
             self.viewport().update()
             
@@ -147,15 +130,15 @@ class CustomHeaderView(QHeaderView):
     def mousePressEvent(self, event):
         logical_index = self.logicalIndexAt(event.pos())
         pos = event.pos()
-        if logical_index == 7:  # Status column
+        if logical_index == 7:
             if self.up_arrow_rect.contains(pos):
                 self.sort_by_status(True)
             elif self.down_arrow_rect.contains(pos):
                 self.sort_by_status(False)
-        elif logical_index == 2 and self.search_rect and self.search_rect.contains(pos):  # SSN column search
+        elif logical_index == 2 and self.search_rect and self.search_rect.contains(pos):
             parent = self.parent()
             if isinstance(parent, QTableWidget):
-                parent.parent().toggle_search_bar()  # Toggle search bar visibility
+                parent.parent().toggle_search_bar()
         super().mousePressEvent(event)
 
     def sort_by_status(self, ascending):
@@ -279,6 +262,7 @@ class ProcessorDashboard(QWidget):
         layout.setSpacing(15)
         self.setLayout(layout)
 
+        # Profile label at top right with dropdown menu
         self.profile_label = QLabel(f"👤 {self.username}")
         self.profile_label.setStyleSheet("""
             color: #ffffff;
@@ -290,10 +274,9 @@ class ProcessorDashboard(QWidget):
         """)
         self.profile_label.setCursor(Qt.CursorShape.PointingHandCursor)
         self.profile_label.setAlignment(Qt.AlignmentFlag.AlignRight)
-        self.profile_label.mousePressEvent = lambda event: None
+        self.profile_label.mousePressEvent = self.show_profile_menu  # Connect to dropdown menu
         layout.addWidget(self.profile_label, alignment=Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignRight)
 
-        # Add SSN search bar (initially hidden)
         self.ssn_search = QLineEdit()
         self.ssn_search.setPlaceholderText("Search by SSN (e.g., XXX-XX-XXXX)")
         self.ssn_search.setStyleSheet("""
@@ -304,7 +287,7 @@ class ProcessorDashboard(QWidget):
             background-color: #444444;
             font-size: 14px;
         """)
-        self.ssn_search.setVisible(False)  # Hidden by default
+        self.ssn_search.setVisible(False)
         self.ssn_search.textChanged.connect(self.load_applications)
         layout.addWidget(self.ssn_search, stretch=0)
 
@@ -339,8 +322,6 @@ class ProcessorDashboard(QWidget):
 
         custom_header = CustomHeaderView(Qt.Orientation.Horizontal, self.table)
         self.table.setHorizontalHeader(custom_header)
-
-        # Make sure the viewport updates when the header is hovered
         custom_header.viewport().setMouseTracking(True)
 
         layout.addWidget(self.table, stretch=1)
@@ -351,6 +332,33 @@ class ProcessorDashboard(QWidget):
         layout.addWidget(refresh_btn, stretch=0)
 
         self.load_applications()
+
+    def show_profile_menu(self, event):
+        """Display a dropdown menu directly below the profile label with a light grey background."""
+        menu = QMenu(self)
+        menu.setStyleSheet("""
+            QMenu {
+                background-color: #D3D3D3;
+                color: #000000;
+                border: 1px solid #777777;
+                border-radius: 5px;
+            }
+            QMenu::item {
+                padding: 8px 20px;
+            }
+            QMenu::item:selected {
+                background-color: #A9A9A9;
+            }
+        """)
+        logout_action = menu.addAction("Log Out")
+        logout_action.triggered.connect(self.logout)
+        
+        label_pos = self.profile_label.mapToGlobal(self.profile_label.rect().bottomLeft())
+        menu.exec(label_pos)
+
+    def logout(self):
+        """Handle logout by returning to the login screen."""
+        self.parent().parent().logout()
 
     def load_applications(self):
         try:
@@ -553,17 +561,11 @@ class ProcessorDashboard(QWidget):
         dialog = NoteHistoryDialog(application_id, parent=self)
         dialog.exec()
 
-    def needs_more_info(self, application_id):
-        note_dialog = NoteDialog(application_id, note_type="additional_info", parent=self)
-        if note_dialog.exec() == QDialog.DialogCode.Accepted:
-            self.load_applications()
-
     def toggle_search_bar(self):
-        """Toggle the visibility of the SSN search bar and refresh the table."""
         if self.ssn_search.isVisible():
             self.ssn_search.setVisible(False)
-            self.ssn_search.clear()  # Clear the text when hiding
+            self.ssn_search.clear()
         else:
             self.ssn_search.setVisible(True)
-            self.ssn_search.setFocus()  # Focus on the search bar when shown
-        self.load_applications()  # Refresh table based on current state
+            self.ssn_search.setFocus()
+        self.load_applications()
