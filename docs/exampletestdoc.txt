@@ -1,0 +1,30 @@
+Federal Retirement Automation
+Retirement Application
+First Name: John
+Last Name: Doe
+Date of Birth: 1985-02-21
+Social Security Number: 123-45-6789
+Address: 123 Main Street
+City: Anytown
+State: CA
+Zip Code: 12345
+Phone Number: (555) 123-4567
+Email Address: john.doe@email.com
+U.S. Citizen: Yes
+Agency: Department of Defense
+Position Title: Senior Analyst
+Hire/Start Date: 2005-02-21
+Retirement Date: 2025-02-21
+Years of Service: Calculated automatically
+High-3 Salary: 85000
+Survivor Benefit: Full
+Continue FEHB (5+ years coverage): Yes
+Continue FEGLI (5+ years coverage): Yes
+Bank Name (Direct Deposit): ABC Bank
+Account Number: 1234567890
+Routing Number: 987654321
+Served in Armed Forces: No
+Receiving Military Retired Pay: No
+Waived Military Pay for CSRS/FERS: No
+Unused Sick Leave Hours: 240
+Court Orders for Former Spouses: No

@@ -12,7 +12,7 @@ A Python application to automate the federal employee retirement process.
 
 ## Usage
 - Login with role-based credentials (e.g., `employee`/`emp123`, `processor`/`proc123`, `supervisor`/`super123`).
-- **Employee**: Enter personal info, service history, salary, and benefits elections; optionally upload a form (PDF/image) for OCR extraction. Submit for processing.
+- **Employee**: Enter personal info, service history, salary, and benefits elections; optionally upload a form (PDF/image) for OCR extraction. Submit for processing. Use exampletestdoc.txt to either upload as screenshot, or convert to .pdf and upload to test the program. 
 - **Processor**: Review applications, verify eligibility and benefits, and submit to supervisors or request more info.
 - **Supervisor**: Approve or deny applications, add denial notes, and view detailed records.
 
