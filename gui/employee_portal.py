@@ -145,7 +145,7 @@ class EmployeePortal(QWidget):
         form_layout.addRow(QLabel("Continue FEHB (5+ years coverage):", styleSheet="color: #ffffff;"), self.fehb_continue)
 
         self.fegli_continue = QCheckBox()
-        form_layout.addRow(QLabel("Continue FEGLI (5+ years coverage):", styleSheet="color: #ffffff;"), self.fehb_continue)
+        form_layout.addRow(QLabel("Continue FEGLI (5+ years coverage):", styleSheet="color: #ffffff;"), self.fegli_continue)
 
         self.bank_name = QLineEdit()
         self.bank_name.setPlaceholderText("Bank Name")
