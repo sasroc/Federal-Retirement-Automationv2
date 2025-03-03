@@ -1,6 +1,7 @@
 # Federal-Retirement-Automationv2/main.py
 
 from PyQt6.QtWidgets import QApplication, QMainWindow, QStackedWidget, QDialog
+from PyQt6.QtCore import Qt, Qt as QtCore  # Explicitly import Qt for WindowState
 from gui.employee_portal import EmployeePortal
 from gui.processor_dashboard import ProcessorDashboard
 from gui.supervisor_dashboard import SupervisorDashboard
@@ -12,7 +13,9 @@ class RetirementApp(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Federal Retirement Automation")
-        self.setGeometry(100, 100, 800, 600)  # Initial geometry, but hidden until login
+        # Set an initial size that should fit most screens; avoid conflicts with minimum size
+        self.setGeometry(100, 100, 1280, 720)  # Reduced initial height to avoid issues
+        self.setMinimumSize(800, 600)  # Set a reasonable minimum size
         self.stack = QStackedWidget()
         self.setCentralWidget(self.stack)
 
@@ -42,9 +45,11 @@ class RetirementApp(QMainWindow):
                 self.supervisor_dashboard = SupervisorDashboard(username)
                 self.stack.addWidget(self.supervisor_dashboard)
                 self.stack.setCurrentWidget(self.supervisor_dashboard)
-            # Show and maximize the main window after successful login
+            # Show the window and adjust size smoothly
             self.show()
-            self.showMaximized()
+            # Instead of showMaximized(), restore to normal state first, then maximize
+            self.setWindowState(Qt.WindowState.WindowNoState)  # Reset to normal state
+            self.showMaximized()  # Now maximize safely
             QApplication.processEvents()  # Ensure layout updates after maximizing
         else:
             self.close()
@@ -58,7 +63,10 @@ class RetirementApp(QMainWindow):
             self.stack.removeWidget(widget)
             widget.deleteLater()
 
-        # Reset window state and show login dialog
+        # Reset window state and size to avoid geometry conflicts
+        self.setWindowState(Qt.WindowState.WindowNoState)  # Reset to normal state
+        self.resize(1280, 720)  # Reset to a safe size
+        self.move(100, 100)  # Reset position
         self.hide()  # Hide the main window before showing login
         self.show_login_dialog()
 
