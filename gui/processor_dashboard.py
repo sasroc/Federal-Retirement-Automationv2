@@ -4,7 +4,7 @@ from PyQt6.QtWidgets import QWidget, QVBoxLayout, QTableWidget, QTableWidgetItem
 from PyQt6.QtCore import Qt, QPoint, QRect, QSize
 from PyQt6.QtGui import QPainter, QFontMetrics, QPen, QBrush
 import sqlite3
-from utils.calculations import calculate_age, is_eligible, calculate_annuity
+from utils.calculations import calculate_age, is_eligible, calculate_annuity, calculate_unused_sick_leave_bonus
 from utils.dialogs import NoteDialog, ViewNotesDialog, NoteHistoryDialog
 from gui.login_dialog import LoginDialog  # Import for logout functionality
 
@@ -180,8 +180,10 @@ class DetailsDialog(QDialog):
             else:
                 age = calculate_age(emp[3])
                 years_service = app[2]
-                eligible = is_eligible(age, years_service)
-                annuity = calculate_annuity(years_service, app[4], age) if eligible else 0
+                sick_leave_hours = float(app[18]) if app[18] is not None else 0.0
+                adjusted_years_service = calculate_unused_sick_leave_bonus(years_service, sick_leave_hours)
+                eligible = is_eligible(age, adjusted_years_service)
+                annuity = calculate_annuity(adjusted_years_service, app[4], age) if eligible else 0
 
                 details = f"""
                 Application ID: {app[0]}
@@ -189,6 +191,8 @@ class DetailsDialog(QDialog):
                 SSN: {emp[4]}
                 Date of Birth: {emp[3]} (Age: {age})
                 Years of Service: {years_service}
+                Unused Sick Leave Hours: {sick_leave_hours}
+                Adjusted Years of Service (with sick leave bonus): {adjusted_years_service:.2f}
                 Retirement Date: {app[3]}
                 High-3 Salary: ${app[4]:,.2f}
                 Submission Date: {app[5]}
@@ -366,7 +370,7 @@ class ProcessorDashboard(QWidget):
             cursor = conn.cursor()
             search_text = self.ssn_search.text().strip() if self.ssn_search.isVisible() else ""
             query = """
-                SELECT a.application_id, e.first_name || ' ' || e.last_name, e.ssn, e.dob, a.years_service, a.salary, a.benefits, a.status 
+                SELECT a.application_id, e.first_name || ' ' || e.last_name, e.ssn, e.dob, a.years_service, a.salary, a.benefits, a.status, a.sick_leave_hours 
                 FROM Applications a 
                 JOIN Employees e ON a.employee_id = e.employee_id 
                 WHERE a.status IN ('Processing', 'Needs Additional Info', 'Denied by Supervisor')
@@ -386,8 +390,11 @@ class ProcessorDashboard(QWidget):
                     continue
                 age = calculate_age(app[3])
                 years_service = app[4]
-                eligible = is_eligible(age, years_service)
-                annuity = calculate_annuity(years_service, app[5], age) if eligible else 0
+                # Fetch sick leave hours (app[8]) and calculate adjusted years of service
+                sick_leave_hours = float(app[8]) if app[8] is not None else 0.0
+                adjusted_years_service = calculate_unused_sick_leave_bonus(years_service, sick_leave_hours)
+                eligible = is_eligible(age, adjusted_years_service)
+                annuity = calculate_annuity(adjusted_years_service, app[5], age) if eligible else 0
 
                 if eligible and (app[6] is None or app[6] == 0):
                     cursor.execute("UPDATE Applications SET benefits = ? WHERE application_id = ?", (annuity, app[0]))
@@ -460,7 +467,7 @@ class ProcessorDashboard(QWidget):
             order = "ASC" if ascending else "DESC"
             search_text = self.ssn_search.text().strip() if self.ssn_search.isVisible() else ""
             query = f"""
-                SELECT a.application_id, e.first_name || ' ' || e.last_name, e.ssn, e.dob, a.years_service, a.salary, a.benefits, a.status 
+                SELECT a.application_id, e.first_name || ' ' || e.last_name, e.ssn, e.dob, a.years_service, a.salary, a.benefits, a.status, a.sick_leave_hours 
                 FROM Applications a 
                 JOIN Employees e ON a.employee_id = e.employee_id 
                 WHERE a.status IN ('Processing', 'Needs Additional Info', 'Denied by Supervisor')
@@ -481,8 +488,10 @@ class ProcessorDashboard(QWidget):
                     continue
                 age = calculate_age(app[3])
                 years_service = app[4]
-                eligible = is_eligible(age, years_service)
-                annuity = calculate_annuity(years_service, app[5], age) if eligible else 0
+                sick_leave_hours = float(app[8]) if app[8] is not None else 0.0
+                adjusted_years_service = calculate_unused_sick_leave_bonus(years_service, sick_leave_hours)
+                eligible = is_eligible(age, adjusted_years_service)
+                annuity = calculate_annuity(adjusted_years_service, app[5], age) if eligible else 0
 
                 for col, data in enumerate([app[0], app[1], app[2], age, years_service, f"${app[5]:,.2f}", f"${annuity:,.2f}" if eligible else "N/A", app[7]]):
                     item = QTableWidgetItem(str(data) if data is not None else "N/A")
